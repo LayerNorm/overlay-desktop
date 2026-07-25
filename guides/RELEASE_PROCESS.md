@@ -1,8 +1,10 @@
 # Overlay macOS Release Process
 
-Official desktop releases are frozen until every Gate B requirement in this
-guide is signed off. The workflow keeps both
-release jobs disabled with `if: ${{ false }}` until that review is complete.
+Official **publication** stays frozen until every Gate B requirement in this
+guide is signed off. `build-mac` may run as a signed/notarized dry-run against
+the protected `mac-release` environment. `publish-mac` stays disabled with
+`if: ${{ false }}` until Gate B sign-off — see
+[docs/qa/RELEASE_FREEZE_REMOVAL.md](../docs/qa/RELEASE_FREEZE_REMOVAL.md).
 
 ## Supported artifact
 
@@ -58,18 +60,32 @@ The manual workflow requires a full 40-character `release_source_sha`.
    staples, Electron fuses, ASAR contents, updater metadata, and artifact hashes.
 5. GitHub attests the verified artifacts and stores them as a short-lived
    immutable workflow artifact.
-6. Only the separate protected publish job creates the narrowly scoped GitHub
-   App token and uploads the already-verified files.
+6. Only the separate protected `publish-mac` job (when unfrozen) uploads the
+   already-verified files to this repository’s GitHub Releases using
+   `GITHUB_TOKEN`.
 
-The publishing token must never be available to install scripts, compilers,
-packagers, or artifact verification.
+Signing credentials must never be available to the publish job. Publish
+credentials must never be available to install scripts, compilers, packagers,
+or artifact verification.
 
-## Enabling the workflow after Gate B
+## Signed dry-run (before Gate B)
+
+1. Confirm Apple secrets are current in the `mac-release` environment.
+2. Dispatch **Release macOS** with a full 40-character `release_source_sha`
+   from `main` (or the reviewed candidate).
+3. Approve the `mac-release` environment deployment when prompted.
+4. Confirm `build-mac` is green (sign, notarize, staple, verify, attest, upload
+   workflow artifacts). `publish-mac` must remain skipped.
+5. Download the workflow artifact only for clean-Mac QA — do not publish a
+   GitHub Release until Gate B is signed.
+
+## Enabling publish after Gate B
 
 After the Gate B approval is recorded:
 
-1. Remove `if: ${{ false }}` from both `build-mac` and `publish-mac` in the same
-   reviewed commit.
+1. Merge a dedicated PR that removes `if: ${{ false }}` from `publish-mac` only
+   and updates the release-security / launch-control checks accordingly
+   ([RELEASE_FREEZE_REMOVAL.md](../docs/qa/RELEASE_FREEZE_REMOVAL.md)).
 2. Confirm environment protection and secret placement in GitHub.
 3. Dispatch **Release macOS** with the reviewed full commit SHA.
 4. Confirm the build and publish jobs reference the same SHA.
@@ -78,6 +94,7 @@ After the Gate B approval is recorded:
 6. On a clean Apple Silicon Mac, install the DMG and verify Gatekeeper, sign-in,
    updates, chat approvals, browser permissions, voice helpers, and revocation of
    optional diagnostics.
+7. Only then set `OVERLAY_DESKTOP_DOWNLOADS_ENABLED=1` on the website.
 
 ## Updater policy
 
