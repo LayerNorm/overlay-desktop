@@ -48,13 +48,17 @@ Ownership legend:
 
 ### 3. Kill-switch drill — **You** (agent can help verify fail-closed UX)
 
-**Scheduled:** Monday 2026-07-27, 10:00–10:15 America/Los_Angeles
+**Executed early (Vercel half):** Saturday 2026-07-25 (~14:00–14:06 America/Los_Angeles)
+on production `overlay-landing` / `www.getoverlay.io`. Evidence in
+[GATE_A_SOURCE_PUBLICATION_CHECKLIST.md](./GATE_A_SOURCE_PUBLICATION_CHECKLIST.md).
 
-- [ ] Confirm no overlapping launch/demo
-- [ ] Set `OVERLAY_HOSTED_PROVIDER_KILL_SWITCH=1` in production
-- [ ] Confirm owner-funded ops fail closed
-- [ ] Unset flag and confirm recovery
-- [ ] Record duration / impact
+- [x] Confirm no overlapping launch/demo (ad-hoc window; owner-approved)
+- [x] Set `OVERLAY_HOSTED_PROVIDER_KILL_SWITCH=1` in production
+- [x] Confirm discovery fail-closed (`hostedInference: false`)
+- [x] Unset flag and confirm recovery (`hostedInference: true`)
+- [x] Record duration / impact (~6 minutes aliased prod; see Gate A checklist)
+- [ ] Optional: re-run in the original Mon 2026-07-27 window if you want a
+      calendar-aligned drill with broader owner-funded chat smoke
 
 ### 4. Org / maintainer hygiene — **You**
 
