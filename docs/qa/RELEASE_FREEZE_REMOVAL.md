@@ -14,19 +14,19 @@ are true.
 - [x] `CSC_LINK` / `CSC_KEY_PASSWORD` current in `mac-release`
 - [ ] Developer ID Application certificate valid for `com.layernorm.overlay`
       (implied by green notarized dry-run; re-confirm Team ID / bundle ID)
-- [ ] Notarization dry-run succeeded on a signed build from `mac-release`
-      — track: https://github.com/LayerNorm/overlay-desktop/actions/workflows/release-mac.yml
+- [x] Notarization dry-run succeeded on a signed build from `mac-release`
+      — [30155922115](https://github.com/LayerNorm/overlay-desktop/actions/runs/30155922115)
+      (`105cdae441582e5d50f4bf8ce3ca6b6dad9508f9`, 2026-07-25)
 - [ ] Gate A signed for the same source lineage
 
 ## Agent / release engineer checklist
 
-- [ ] `build-mac` signed dry-run green on the candidate SHA
-  - Prior green (earlier same day): run
-    [30149739591](https://github.com/LayerNorm/overlay-desktop/actions/runs/30149739591)
-    (SHA `d2215a38996800c2148e3cc9ac2bb3a61cca2e89`)
-  - Current candidate: SHA `105cdae441582e5d50f4bf8ce3ca6b6dad9508f9` —
+- [x] `build-mac` signed dry-run green on the candidate SHA
+  - Candidate SHA `105cdae441582e5d50f4bf8ce3ca6b6dad9508f9` —
     run [30155922115](https://github.com/LayerNorm/overlay-desktop/actions/runs/30155922115)
-- [ ] Nested signature / fuse / SBOM / native-helper verification green (same job)
+    (`build-mac` success; `publish-mac` skipped)
+  - Prior green: [30149739591](https://github.com/LayerNorm/overlay-desktop/actions/runs/30149739591)
+- [x] Nested signature / fuse / SBOM / native-helper verification green (same job)
 - [x] [GATE_B_CLEAN_MAC_QA.md](./GATE_B_CLEAN_MAC_QA.md) prepared
 - [ ] Change `publish-mac` `if: ${{ false }}` in a dedicated PR (see below)
 - [ ] Update `scripts/check-release-security.mjs` + `check-launch-controls.mjs` in

@@ -95,8 +95,9 @@ Gate A is still **PENDING** as a sign-off record even though the public repo exi
 - [x] Apple Developer account + Team ID confirmed (owner 2026-07-25)
 - [ ] Bundle ID ownership (`com.layernorm.overlay` or current ID) confirmed
 - [x] Developer ID Application certificate + notarization secrets present in `mac-release`
-- [ ] Notarization dry-run green on candidate SHA `105cdae441582e5d50f4bf8ce3ca6b6dad9508f9`
-      ([run 30155922115](https://github.com/LayerNorm/overlay-desktop/actions/runs/30155922115));
+- [x] Notarization dry-run green on candidate SHA `105cdae441582e5d50f4bf8ce3ca6b6dad9508f9`
+      ([run 30155922115](https://github.com/LayerNorm/overlay-desktop/actions/runs/30155922115) —
+      `build-mac` success, `publish-mac` skipped);
       prior green: [30149739591](https://github.com/LayerNorm/overlay-desktop/actions/runs/30149739591)
 - [x] Protected `mac-release` / `release-publish` environments reviewed
 - [ ] Remove intentional `publish-mac` `if: ${{ false }}` freeze only after Gate B sign-off
