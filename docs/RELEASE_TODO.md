@@ -72,7 +72,7 @@ For open-source releases they must live on **public** `LayerNorm/overlay-desktop
 
 - [x] `mac-release` environment exists with required reviewer + protected-branch deploy policy
 - [x] Apple/signing + WorkOS secrets present as **environment** secrets (not repo-level)
-- [ ] Confirm values are current (rotate Apple app-specific password if unsure)
+- [x] Confirm values are current (owner 2026-07-25: Team ID / notarization / CSC secrets current)
 - [ ] Optional: delete or leave dormant `GH_APP_*` on the private repo; do not put the private key on the public repo
 - [ ] After Gate B, remove Apple secrets from **repository-level** secrets on the private repo so there is one place of truth
 
@@ -88,16 +88,20 @@ Gate A is still **PENDING** as a sign-off record even though the public repo exi
 
 ### 7. Gate B / public DMG
 
-Blocked until signing, notarization, and the protected release pipeline are real.
+`build-mac` signed dry-run is enabled. `publish-mac` stays frozen
+(`if: ${{ false }}`) until Gate B sign-off — see
+[qa/RELEASE_FREEZE_REMOVAL.md](./qa/RELEASE_FREEZE_REMOVAL.md).
 
-- [ ] Apple Developer account + Team ID confirmed
+- [x] Apple Developer account + Team ID confirmed (owner 2026-07-25)
 - [ ] Bundle ID ownership (`com.layernorm.overlay` or current ID) confirmed
-- [ ] Developer ID Application certificate created/valid
-- [ ] Notarization credentials working end-to-end
-- [ ] Protected `release-macos` / `release-publish` environments reviewed
-- [ ] Remove intentional `if: ${{ false }}` freeze only after Gate B sign-off
+- [x] Developer ID Application certificate + notarization secrets present in `mac-release`
+- [ ] Notarization dry-run green on candidate SHA `105cdae441582e5d50f4bf8ce3ca6b6dad9508f9`
+      ([run 30155922115](https://github.com/LayerNorm/overlay-desktop/actions/runs/30155922115));
+      prior green: [30149739591](https://github.com/LayerNorm/overlay-desktop/actions/runs/30149739591)
+- [x] Protected `mac-release` / `release-publish` environments reviewed
+- [ ] Remove intentional `publish-mac` `if: ${{ false }}` freeze only after Gate B sign-off
 - [ ] Build from immutable 40-char SHA; verify nested signatures, fuses, SBOM, staple, Gatekeeper
-- [ ] Clean Apple Silicon install/QA
+- [ ] Clean Apple Silicon install/QA ([qa/GATE_B_CLEAN_MAC_QA.md](./qa/GATE_B_CLEAN_MAC_QA.md))
 - [ ] Fill and sign [GATE_B_BINARY_RELEASE_CHECKLIST.md](./GATE_B_BINARY_RELEASE_CHECKLIST.md)
 - [ ] Only then re-enable website downloads (`OVERLAY_DESKTOP_DOWNLOADS_ENABLED=1`)
 
@@ -142,5 +146,8 @@ Keeping two active remotes is what caused the confusion. One public canonical re
 | 2026-07-24 | Point publish + updater + website at `LayerNorm/overlay-desktop` releases | ops |
 | _unset_ | Session revocation window | _unset_ |
 | _unset_ | Kill-switch drill window | _unset_ |
+| 2026-07-25 | Owner confirmed `mac-release` Apple/CSC secrets current | owner |
+| 2026-07-25 | Signed dry-run dispatched for `105cdae…` (publish still frozen) | agent |
 | _unset_ | Gate A signed | _unset_ |
 | _unset_ | Gate B signed | _unset_ |
+| _unset_ | Unfreeze `publish-mac` | _unset_ |
