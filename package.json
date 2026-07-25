@@ -115,7 +115,7 @@
     "electron-log": "^5.4.3",
     "electron-updater": "^6.3.9",
     "form-data": "4.0.6",
-    "groq-sdk": "^0.34.0",
+    "groq-sdk": "^1.4.0",
     "katex": "^0.16.27",
     "keytar": "^7.9.0",
     "lowlight": "^3.3.0",
