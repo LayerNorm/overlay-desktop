@@ -207,8 +207,10 @@ Publish freeze (`if: ${{ false }}`) remains until you confirm Apple credentials.
 | 2026-07-24 | Created public `LayerNorm/overlay-desktop` from history-free export | ops |
 | 2026-07-25 | Canonical submodule + remotes → LayerNorm; private desktop archived | ops |
 | 2026-07-25 | Kill-switch drill scheduled Mon 2026-07-27 10:00–10:15 PT | owner |
+| 2026-07-25 | Vercel kill-switch drill executed early on www.getoverlay.io | agent |
 | 2026-07-25 | Session revocation scheduled Tue 2026-07-28 09:00–09:30 PT | owner |
 | 2026-07-25 | P1 docs/Mintlify/download UX landed; publish freeze kept | agent |
+| 2026-07-25 | Gate A checklist candidate SHA + history-free root filled | agent |
 | _unset_ | Gate A signed | _unset_ |
 | _unset_ | Gate B signed | _unset_ |
 | _unset_ | Apple signing/notarization creds confirmed → unfreeze publish | _unset_ |
