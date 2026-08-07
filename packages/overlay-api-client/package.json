@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "@overlay/app-core": "0.0.1",
-    "tsx": "^4.8.1",
+    "tsx": "^4.23.5",
     "typescript": "^5"
   }
 }
