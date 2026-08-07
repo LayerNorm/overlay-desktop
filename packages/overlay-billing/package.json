@@ -25,7 +25,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "tsx": "^4.8.1",
+    "tsx": "^4.23.5",
     "typescript": "^5"
   }
 }
