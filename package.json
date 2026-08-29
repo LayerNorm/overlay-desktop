@@ -121,7 +121,7 @@
     "lowlight": "^3.3.0",
     "lucide-react": "^0.575.0",
     "mammoth": "^1.11.0",
-    "marked": "^17.0.2",
+    "marked": "^18.0.7",
     "mixpanel-browser": "^2.74.0",
     "node-pty": "^1.1.0",
     "openai": "^6.15.0",
