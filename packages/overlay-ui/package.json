@@ -41,7 +41,7 @@
     "storybook:build": "storybook build"
   },
   "devDependencies": {
-    "@storybook/react-vite": "^10.5.4",
+    "@storybook/react-vite": "^10.5.10",
     "storybook": "^10.5.4"
   }
 }
