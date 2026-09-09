@@ -109,7 +109,7 @@
     "ai": "^6.0.39",
     "apache-arrow": "^18.1.0",
     "axios": "1.18.1",
-    "csv-parse": "^6.1.0",
+    "csv-parse": "^7.0.2",
     "dompurify": "3.4.12",
     "dotenv": "^17.2.3",
     "electron-log": "^5.4.3",
