@@ -67,7 +67,7 @@
     "@ai-sdk/gateway": "^3.0.66",
     "@ai-sdk/google": "^3.0.10",
     "@ai-sdk/groq": "^3.0.10",
-    "@ai-sdk/openai": "^3.0.12",
+    "@ai-sdk/openai": "^4.0.23",
     "@ai-sdk/xai": "^3.0.26",
     "@anthropic-ai/sdk": "^0.71.0",
     "@composio/core": "^0.6.4",
