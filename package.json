@@ -74,7 +74,7 @@
     "@composio/vercel": "^0.6.4",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
-    "@google/genai": "^1.30.0",
+    "@google/genai": "^2.13.0",
     "@lancedb/lancedb": "^0.23.0",
     "@openrouter/ai-sdk-provider": "^2.10.0",
     "@openrouter/sdk": "^1.1.6",
