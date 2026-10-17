@@ -55,7 +55,7 @@ const sharedEditor = fs.readFileSync(
 if (!sharedSidebar.includes('const NotebookNoteRow = memo(')) {
   failures.push('completed notebook sidebar rows must remain memoized')
 }
-if (!sharedEditor.includes('onDeleteNote={deleteSidebarNote}')) {
+if (!sharedEditor.includes('onDeleteNote={mutations.deleteSidebarNote}')) {
   failures.push('notebook row callbacks must remain stable during editor typing')
 }
 

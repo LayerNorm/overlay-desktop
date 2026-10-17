@@ -45,12 +45,17 @@ export type ThemePresetId =
   | 'vscode-plus'
   | 'xcode'
 
+/** Where a hyperlink in a chat response opens. `ask` shows the chooser on click. */
+export type LinkOpenPreference = 'ask' | 'overlay' | 'new-tab'
+
 export interface AppSettings {
   theme: ThemePreference
   lightThemePreset: ThemePresetId
   darkThemePreset: ThemePresetId
   chatStreamingMode: ChatStreamingMode
   autoContinue: boolean
+  collapseAgentWork: boolean
+  linkOpenPreference: LinkOpenPreference
   defaultChatMode: ChatModePreference
   modelPreference: ModelPreference
   defaultAskModelIds: string[]
@@ -66,6 +71,8 @@ export interface AppSettings {
   dismissedZdrWarningModelIds: string[]
   /** Chat model IDs shown in the user's model picker. Empty uses the curated default list. */
   enabledChatModelIds: string[]
+  /** Explicit model-picker order. Models not listed are appended in their normal order. */
+  modelOrder: string[]
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -74,6 +81,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   darkThemePreset: 'default-dark',
   chatStreamingMode: 'token',
   autoContinue: false,
+  collapseAgentWork: true,
+  linkOpenPreference: 'ask',
   defaultChatMode: 'act',
   modelPreference: 'same-for-each-chat',
   defaultAskModelIds: [],
@@ -88,6 +97,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   dismissedZdrWarningGlobally: false,
   dismissedZdrWarningModelIds: [],
   enabledChatModelIds: [],
+  modelOrder: [],
 }
 
 export interface ChatModel {

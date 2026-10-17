@@ -237,7 +237,6 @@ interface RemoteMemory {
   conversationId?: string
   messageId?: string
   noteId?: string
-  projectId?: string
   createdAt: number
   updatedAt: number
   deletedAt?: number
@@ -306,7 +305,6 @@ export function MemoryListPage({
               source: {
                 chatId: memory.conversationId || '',
                 messageId: memory.messageId,
-                folderId: memory.projectId,
                 noteId: memory.noteId
               },
               createdAt: memory.createdAt,

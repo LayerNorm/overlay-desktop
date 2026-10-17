@@ -6,27 +6,23 @@
   "sideEffects": false,
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "files": ["src", "README.md", "LICENSE", "tsconfig.json"],
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
-  },
   "exports": {
     ".": "./src/index.ts",
     "./app-shell": "./src/app-shell.ts",
     "./automations": "./src/automations.ts",
     "./capabilities": "./src/capabilities.ts",
     "./contracts": "./src/contracts.ts",
-    "./knowledge": "./src/knowledge.ts",
-    "./knowledge-surface": "./src/knowledge-surface.ts",
-    "./knowledge-surface-fixture": "./src/knowledge-surface-fixture.ts",
-    "./knowledge-migration": "./src/knowledge-migration.ts",
     "./extensions": "./src/extensions.ts",
     "./file-parity-fixtures": "./src/file-parity-fixtures.ts",
     "./file-viewer": "./src/file-viewer.ts",
+    "./knowledge": "./src/knowledge.ts",
+    "./knowledge-migration": "./src/knowledge-migration.ts",
+    "./knowledge-surface": "./src/knowledge-surface.ts",
+    "./knowledge-surface-fixture": "./src/knowledge-surface-fixture.ts",
     "./modules": "./src/modules.ts",
+    "./note-edits": "./src/note-edits.ts",
+    "./note-markdown": "./src/note-markdown.ts",
     "./notes": "./src/notes.ts",
-    "./projects": "./src/projects.ts",
     "./settings-account": "./src/settings-account.ts",
     "./theme": "./src/theme.ts"
   },
@@ -34,14 +30,39 @@
     "@overlay/auth-contracts": "0.0.1",
     "@overlay/billing": "0.0.1",
     "@overlay/llm-gateway": "0.0.1",
-    "@overlay/storage-contracts": "0.0.1"
+    "@overlay/storage-contracts": "0.0.1",
+    "hast-util-from-html": "^2.0.3",
+    "hast-util-raw": "^9.1.0",
+    "hast-util-sanitize": "^5.0.2",
+    "hast-util-to-html": "^9.0.4",
+    "hast-util-to-mdast": "^10.1.2",
+    "mdast-util-from-markdown": "^2.0.3",
+    "mdast-util-gfm": "^3.1.0",
+    "mdast-util-math": "^3.0.0",
+    "mdast-util-to-hast": "^13.2.1",
+    "mdast-util-to-markdown": "^2.1.2",
+    "mdast-util-to-string": "^4.0.0",
+    "micromark-extension-gfm": "^3.0.0",
+    "micromark-extension-math": "^3.1.0"
   },
   "scripts": {
     "test": "tsx --test src/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/hast": "^3.0.4",
+    "@types/mdast": "^4.0.4",
     "tsx": "^4.8.1",
     "typescript": "^5"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE",
+    "tsconfig.json"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

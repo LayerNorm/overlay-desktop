@@ -1,0 +1,60 @@
+{
+  "name": "@layernorm/overlay-agent-host",
+  "version": "0.3.11",
+  "description": "Outbound-only host for connecting user-owned and managed agents to Overlay.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LayerNorm/overlay-web.git",
+    "directory": "packages/overlay-agent-host"
+  },
+  "homepage": "https://github.com/LayerNorm/overlay-web/tree/main/packages/overlay-agent-host#readme",
+  "bugs": {
+    "url": "https://github.com/LayerNorm/overlay-web/issues"
+  },
+  "type": "module",
+  "bin": {
+    "overlay-agent-host": "./src/cli.mjs"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "dist",
+    "src/cli.mjs",
+    "Dockerfile",
+    "docker-compose.example.yml",
+    "README.md",
+    "systemd",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "tsx --test src/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "^1.4.0",
+    "@layernorm/overlay-agent-bridge-protocol": "0.3.11",
+    "acpx": "0.19.2",
+    "ai": "7.0.65",
+    "eve": "0.44.4",
+    "tsx": "^4.8.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "typescript": "^5"
+  },
+  "private": false
+}

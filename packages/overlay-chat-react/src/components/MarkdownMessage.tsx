@@ -1,7 +1,10 @@
 import 'katex/dist/katex.min.css'
+import { Orb } from '@overlay/ui'
 import { type ReactNode, memo, useMemo } from 'react'
+import { AtSign, BookOpen, Bot, FileText, Hash, Plug, Server, Sparkles } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import type { SourceCitationMap } from '../lib/source-citations'
+import { knowledgeChipLabel, knowledgeSourcesFromCitations } from '../lib/knowledge-sources'
 import { webSourceDisplayKey, type WebSourceItem } from '../lib/web-sources'
 import { shimIncompleteMarkdown } from '../lib/shim-incomplete-markdown'
 import type { ChatStreamingMode } from '../context/chat-settings'
@@ -15,6 +18,12 @@ import { markdownRehypePlugins, markdownRehypePluginsStreaming, markdownRemarkPl
 import { createBaseMdComponents, extractLinkText } from './markdown/renderers'
 import { splitStreamingMarkdown, useSmoothStreamedText } from './markdown/streaming'
 import { recordRender, timeSync } from '../lib/perf-debug'
+import {
+  createMentionRemarkPlugin,
+  isMentionHref,
+  mentionChipClass,
+  type ChatMessageMention,
+} from './markdown/mentions'
 
 interface Props {
   text: string
@@ -31,6 +40,10 @@ interface Props {
   suppressTypingIndicator?: boolean
   /** Prefix for /app/* markdown links (extension host). */
   appBaseUrl?: string | null
+  /** Known mentions render as the same distinct pills used by the composer. */
+  mentions?: ChatMessageMention[]
+  /** Optional avatar renderer for mention chips (e.g. agent creatures). Falls back to the type icon. */
+  renderMentionAvatar?: (mention: ChatMessageMention) => ReactNode
   /**
    * 'token' (default): render the full normalized text through one ReactMarkdown pass
    *   every update, with a shim that closes open structures so partial markdown still
@@ -56,6 +69,8 @@ function MarkdownMessageImpl({
   suppressTypingIndicator = false,
   streamingMode = 'token',
   appBaseUrl = null,
+  mentions,
+  renderMentionAvatar,
   onOpenAttachmentPreview,
 }: Props) {
   recordRender(isStreaming ? 'MarkdownMessage(streaming)' : 'MarkdownMessage')
@@ -77,15 +92,31 @@ function MarkdownMessageImpl({
     [text, sourceCitations, isStreaming, hasCitationMap, webSources, hasWebSources, appBaseUrl],
   )
 
+  // Ordered the same way the chip hrefs are numbered, so `#overlay-knowcite-2`
+  // is the second citation in the map.
+  const knowledgeSources = useMemo(
+    () => knowledgeSourcesFromCitations(sourceCitations, appBaseUrl),
+    [sourceCitations, appBaseUrl],
+  )
+
   const mdRenderComponents = useMemo(
     () => {
       const baseComponents = createBaseMdComponents({ onOpenAttachmentPreview })
       const chipClass =
-        'overlay-webcite-chip mx-0.5 inline-flex max-w-full cursor-pointer items-baseline rounded-full border border-[var(--border)] bg-[var(--surface-subtle)] px-2 py-0.5 align-baseline text-[11px] font-normal leading-none text-[var(--muted)] no-underline! transition-colors hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)]'
+        'overlay-webcite-chip mx-0.5 inline-flex max-w-full cursor-pointer items-baseline rounded-full border border-(--border) bg-(--surface-subtle) px-2 py-0.5 align-baseline text-[11px] font-normal leading-none text-(--muted) no-underline! transition-colors hover:bg-(--surface-elevated) hover:text-(--foreground)'
 
       const renderChip = (href: string, label: string, tooltipSources: WebSourceItem[]) => (
         <WebSourceTooltip sources={tooltipSources}>
           <a href={href} target="_blank" rel="noopener noreferrer" className={chipClass}>
+            {label}
+          </a>
+        </WebSourceTooltip>
+      )
+
+      /** Knowledge chips stay in the app — same chip, same hover card, no new tab. */
+      const renderInternalChip = (href: string, label: string, tooltipSources: WebSourceItem[]) => (
+        <WebSourceTooltip sources={tooltipSources}>
+          <a href={href} className={chipClass}>
             {label}
           </a>
         </WebSourceTooltip>
@@ -97,6 +128,33 @@ function MarkdownMessageImpl({
         a(props: any) {
           const href = props.href
           const linkText = extractLinkText(props.children as ReactNode).trim()
+
+          if (isMentionHref(href)) {
+            const encodedId = typeof href === 'string' ? href.slice('#overlay-mention-'.length) : ''
+            const mention = mentions?.find((item) => encodeURIComponent(item.id) === encodedId)
+            const avatar = mention ? renderMentionAvatar?.(mention) : undefined
+            const Icon = mention?.type === 'file' ? FileText
+              : mention?.type === 'knowledge' ? BookOpen
+                : mention?.type === 'connector' ? Plug
+                  : mention?.type === 'automation' || mention?.type === 'agent' ? Bot
+                    : mention?.type === 'skill' ? Sparkles
+                      : mention?.type === 'mcp' ? Server
+                        : mention?.type === 'chat' ? Hash
+                          : AtSign
+            return <span className={`${mentionChipClass} gap-1`}>{avatar ?? <Icon size={11} strokeWidth={1.75} aria-hidden="true" />}{props.children}</span>
+          }
+
+          // Knowledge citation chip: `#overlay-knowcite-N` (a cited file or memory).
+          if (typeof href === 'string' && href.startsWith('#overlay-knowcite-')) {
+            const n = parseInt(href.slice('#overlay-knowcite-'.length), 10)
+            const source = knowledgeSources[n - 1]
+            const citation = sourceCitations?.[String(n)]
+            if (source?.internalHref) {
+              const label = linkText || (citation ? knowledgeChipLabel(citation) : source.title)
+              return renderInternalChip(source.internalHref, label, [source])
+            }
+            return <span className="mx-0.5 text-[11px] text-(--muted) tabular-nums">[{n}]</span>
+          }
 
           // Multi-citation chip: `#overlay-webcite-multi-1-2-3`
           if (typeof href === 'string' && href.startsWith('#overlay-webcite-multi-')) {
@@ -110,7 +168,7 @@ function MarkdownMessageImpl({
               // Multi-chip opens the first source on click; tooltip surfaces the rest.
               return renderChip(picked[0]!.url, linkText || webSourceDisplayKey(picked[0]!.url), picked)
             }
-            return <span className="mx-0.5 text-[11px] text-[var(--muted)] tabular-nums">[{raw}]</span>
+            return <span className="mx-0.5 text-[11px] text-(--muted) tabular-nums">[{raw}]</span>
           }
 
           // Single citation chip: `#overlay-webcite-N`
@@ -121,7 +179,7 @@ function MarkdownMessageImpl({
             if (src) {
               return renderChip(src.url, linkText || webSourceDisplayKey(src.url), [src])
             }
-            return <span className="mx-0.5 text-[11px] text-[var(--muted)] tabular-nums">[{raw}]</span>
+            return <span className="mx-0.5 text-[11px] text-(--muted) tabular-nums">[{raw}]</span>
           }
 
           // Generic external URL → also render as chip with a tooltip. Skip Connect-service
@@ -152,7 +210,7 @@ function MarkdownMessageImpl({
             (href.length > 96 || href.includes('%7C') || href.includes('|'))
           ) {
             return (
-              <span className="whitespace-pre-wrap wrap-break-word text-[var(--foreground)]">
+              <span className="whitespace-pre-wrap wrap-break-word text-(--foreground)">
                 {props.children}
               </span>
             )
@@ -173,7 +231,11 @@ function MarkdownMessageImpl({
         },
       }
     },
-    [webSources, appBaseUrl, onOpenAttachmentPreview],
+    [knowledgeSources, sourceCitations, webSources, appBaseUrl, mentions, renderMentionAvatar, onOpenAttachmentPreview],
+  )
+  const activeRemarkPlugins = useMemo(
+    () => [...markdownRemarkPlugins, createMentionRemarkPlugin(mentions)],
+    [mentions],
   )
   // Smooth pacer: while streaming in token mode, reveal the normalized text one
   // character at a time at a steady rate. When not streaming (or in chunk mode),
@@ -233,7 +295,7 @@ function MarkdownMessageImpl({
     return (
       <div className={`markdown-content${isStreaming ? ' markdown-content--streaming' : ''}`}>
         <ReactMarkdown
-          remarkPlugins={markdownRemarkPlugins}
+          remarkPlugins={activeRemarkPlugins}
           rehypePlugins={activeRehypePlugins}
           components={mdRenderComponents}
         >
@@ -246,9 +308,11 @@ function MarkdownMessageImpl({
   return (
     <div className="markdown-content">
       {completedBlocks.map((block, index) => (
+        // Parsed blocks have no id; index is the stable identity for append-only output.
+        // react-doctor-disable-next-line react-doctor/no-array-index-as-key
         <div key={`md-block-${index}`} className="md-block-appear">
           <ReactMarkdown
-            remarkPlugins={markdownRemarkPlugins}
+            remarkPlugins={activeRemarkPlugins}
             rehypePlugins={markdownRehypePlugins}
             components={mdRenderComponents}
           >
@@ -260,7 +324,7 @@ function MarkdownMessageImpl({
       {trailingBlock ? (
         <div key={`md-block-${completedBlocks.length}`} className="md-block-appear">
           <ReactMarkdown
-            remarkPlugins={markdownRemarkPlugins}
+            remarkPlugins={activeRemarkPlugins}
             rehypePlugins={markdownRehypePlugins}
             components={mdRenderComponents}
           >
@@ -270,7 +334,9 @@ function MarkdownMessageImpl({
       ) : null}
 
       {showInlineTypingDots ? (
-        <span className="overlay-stream-marker" aria-hidden />
+        <span className="overlay-stream-marker" aria-hidden>
+          <Orb variant="metal" size={14} animated={false} label="" />
+        </span>
       ) : null}
     </div>
   )
@@ -312,6 +378,8 @@ export const MarkdownMessage = memo(MarkdownMessageImpl, (prev, next) => {
     prev.streamingMode === next.streamingMode &&
     prev.suppressTypingIndicator === next.suppressTypingIndicator &&
     prev.appBaseUrl === next.appBaseUrl &&
+    prev.mentions === next.mentions &&
+    prev.renderMentionAvatar === next.renderMentionAvatar &&
     sameCitations(prev.sourceCitations, next.sourceCitations) &&
     sameWebSources(prev.webSources, next.webSources)
   )

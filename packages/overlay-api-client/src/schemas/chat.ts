@@ -4,7 +4,6 @@ import { AuthFields, BooleanQueryValue, IdQuery, IntegerQueryValue, PaginationQu
 export const ConversationListQuery = PaginationQuery.extend({
   conversationId: IdQuery,
   messages: BooleanQueryValue,
-  projectId: IdQuery,
   updatedSince: IntegerQueryValue,
   includeDeleted: BooleanQueryValue,
   beforeCreatedAt: IntegerQueryValue,
@@ -18,8 +17,7 @@ export const ConversationEventsQuery = z.object({
 export const CreateConversationRequest = z.object({
   ...AuthFields,
   title: z.string().min(1).max(200).optional(),
-  projectId: z.string().optional(),
-  askModelIds: z.array(z.string()).optional(),
+  askModelIds: z.array(z.string().min(1).max(160)).max(4).optional(),
   actModelId: z.string().optional(),
   lastMode: z.enum(['ask', 'act']).optional(),
   clientId: z.string().optional(),
@@ -28,7 +26,6 @@ export const CreateConversationRequest = z.object({
 export const UpdateConversationRequest = CreateConversationRequest.partial().extend({
   ...AuthFields,
   conversationId: z.string().min(1),
-  projectId: z.string().nullable().optional(),
 })
 
 export const DeleteConversationRequest = z.object({
@@ -51,18 +48,39 @@ export const DeleteConversationMessageRequest = z.object({
   turnId: z.string().min(1).optional(),
 }).passthrough()
 
+export const AgentGreetingRequest = z.object({
+  ...AuthFields,
+  conversationId: z.string().min(1),
+  agentId: z.string().min(1),
+}).passthrough()
+
 export const StopConversationRequest = z.object({
   ...AuthFields,
   conversationId: z.string().min(1),
   messageId: z.string().min(1).optional(),
   partialContent: z.string().optional(),
-  partialParts: z.array(z.record(z.unknown())).optional(),
+  partialParts: z.array(z.record(z.string(), z.unknown())).optional(),
 }).passthrough()
 
-export const StreamAuthRequest = z.object({
-  ...AuthFields,
-  conversationId: z.string().min(1).optional(),
-}).passthrough()
+export const AgentRunApprovalRequest = z.object({
+  conversationId: z.string().min(1),
+  agentRunId: z.string().min(1),
+  token: z.string().min(1),
+  approved: z.boolean(),
+  reason: z.string().max(1000).optional(),
+})
+
+export const AgentRunMetricEventRequest = z.object({
+  conversationId: z.string().min(1),
+  agentRunId: z.string().min(1),
+  event: z.enum(['browser_disconnected', 'browser_reconnected']),
+})
+
+export const AgentRunMetricsQuery = z.object({
+  from: z.coerce.number().finite().nonnegative().optional(),
+  to: z.coerce.number().finite().positive().optional(),
+  limit: z.coerce.number().int().min(1).max(3000).optional(),
+})
 
 export const ShareConversationRequest = z.object({
   ...AuthFields,
@@ -74,27 +92,27 @@ export const ActConversationRequest = z.object({
   ...AuthFields,
   conversationId: z.string().optional(),
   conversationClientId: z.string().min(1).optional(),
-  projectId: z.string().optional(),
   askModelIds: z.array(z.string()).optional(),
   messages: z.array(z.unknown()).optional(),
   prompt: z.string().optional(),
   systemPrompt: z.string().optional(),
   turnId: z.string().optional(),
-  modelId: z.string().optional(),
+  modelId: z.string().min(1).max(160).optional(),
   indexedFileNames: z.array(z.string()).optional(),
   indexedAttachments: z.unknown().optional(),
   attachmentNames: z.array(z.string()).optional(),
   replyContextForModel: z.string().optional(),
   historyBaseModelId: z.string().optional(),
   mode: z.enum(['chat', 'automate']).optional(),
+  personalChatMode: z.enum(['chat', 'work']).optional(),
   automationMode: z.boolean().optional(),
   automationExecution: z.boolean().optional(),
   automationId: z.string().optional(),
+  automationName: z.string().max(200).optional(),
   mediaToolIntent: z.enum(['image', 'video']).nullable().optional(),
   requestedToolIds: z.unknown().optional(),
   memoryEnabled: z.boolean().optional(),
   actAbortTimeoutMs: z.number().finite().positive().optional(),
-  streamPersistenceMode: z.enum(['cloudflare-mirror', 'direct']).optional(),
   mentions: z.array(z.object({
     type: z.string(),
     id: z.string(),
@@ -103,9 +121,14 @@ export const ActConversationRequest = z.object({
   })).optional(),
   multiModelSlotIndex: z.number().int().min(0).optional(),
   multiModelTotal: z.number().int().min(1).optional(),
+  reasoning: z.enum(['provider-default', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh']).optional(),
 }).passthrough()
 
 export const ChatSuggestionQuery = z.object({})
+
+export const LinkPreviewQuery = z.object({
+  url: z.string().min(1),
+}).passthrough()
 
 export const GenerateTitleRequest = z.object({
   ...AuthFields,

@@ -1,15 +1,16 @@
 import { z } from 'zod'
+import { ResourceViewQuery } from './misc'
 import { AuthFields, BooleanQueryValue, FormDataBoundary, IdQuery, IntegerQueryValue, PaginationQuery, UnknownResponse } from './common'
 
 export const FileListQuery = PaginationQuery.extend({
   fileId: IdQuery,
-  projectId: IdQuery,
   kind: z.string().optional(),
   parentId: IdQuery,
   conversationId: IdQuery,
   outputType: z.string().optional(),
   type: z.string().optional(),
   summary: BooleanQueryValue,
+  view: ResourceViewQuery,
 })
 
 export const FileContentQuery = z.object({})
@@ -19,7 +20,6 @@ export const CreateFileRequest = z.object({
   name: z.string().min(1).optional(),
   mimeType: z.string().optional(),
   sizeBytes: z.number().nonnegative().optional(),
-  projectId: z.string().nullable().optional(),
   parentId: z.string().nullable().optional(),
   conversationId: z.string().optional(),
   kind: z.string().optional(),

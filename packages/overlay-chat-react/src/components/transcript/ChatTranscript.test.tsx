@@ -6,6 +6,7 @@ import type { ChatTranscriptView } from '@overlay/chat-core'
 import { ChatTranscript } from './ChatTranscript'
 import { ExchangeActions } from './ExchangeActions'
 import { MediaExchange } from './MediaExchange'
+import { UserMessageActions } from './UserMessageActions'
 
 test('ChatTranscript renders normalized exchanges in contract order without wrapper markup', () => {
   const view: ChatTranscriptView = {
@@ -67,6 +68,76 @@ test('ChatTranscript renders normalized exchanges in contract order without wrap
   assert.equal(markup, '<span data-turn="turn-1">One</span><span data-turn="turn-2">Two</span>')
 })
 
+test('sent-message copy actions use the shared touch visibility class', () => {
+  const markup = renderToStaticMarkup(<UserMessageActions markdown="Hello **world**" />)
+
+  assert.match(markup, /chat-exchange-actions--hover/)
+  assert.match(markup, /aria-label="Copy sent message as Markdown"/)
+})
+
+test('ChatTranscript inserts day dividers when consecutive exchanges fall on different days', () => {
+  const view: ChatTranscriptView = {
+    version: 1,
+    exchanges: [
+      {
+        id: 'turn-1',
+        turnId: 'turn-1',
+        index: 0,
+        mode: 'ask',
+        generationMode: 'text',
+        user: {
+          id: 'user-1',
+          text: 'Monday',
+          documentNames: [],
+          indexedAttachments: [],
+          images: [],
+          mentions: [],
+          replyThread: null,
+          createdAt: Date.parse('2026-08-01T12:00:00.000Z'),
+        },
+        responses: [],
+        selectedResponseIndex: -1,
+        selectedModelId: null,
+        status: 'idle',
+        media: null,
+      },
+      {
+        id: 'turn-2',
+        turnId: 'turn-2',
+        index: 1,
+        mode: 'ask',
+        generationMode: 'text',
+        user: {
+          id: 'user-2',
+          text: 'Tuesday',
+          documentNames: [],
+          indexedAttachments: [],
+          images: [],
+          mentions: [],
+          replyThread: null,
+          createdAt: Date.parse('2026-08-02T12:00:00.000Z'),
+        },
+        responses: [],
+        selectedResponseIndex: -1,
+        selectedModelId: null,
+        status: 'idle',
+        media: null,
+      },
+    ],
+  }
+  const markup = renderToStaticMarkup(
+    <ChatTranscript
+      view={view}
+      actions={{
+        renderExchange: (exchange) => <span data-turn={exchange.turnId}>{exchange.user.text}</span>,
+      }}
+    />,
+  )
+  assert.match(markup, /data-testid="chat-day-divider"/)
+  assert.match(markup, /data-turn="turn-1">Monday</)
+  assert.match(markup, /data-turn="turn-2">Tuesday</)
+})
+
 test('MediaExchange keeps platform-neutral image/video loading behavior', () => {
   const markup = renderToStaticMarkup(
     <MediaExchange
@@ -92,7 +163,7 @@ test('MediaExchange keeps platform-neutral image/video loading behavior', () => 
   )
 
   assert.match(markup, /preload="metadata"/)
-  assert.match(markup, /plays[Ii]nline=""/)
+  assert.match(markup, /playsInline=""/)
   assert.doesNotMatch(markup, /autoplay/)
 })
 
@@ -151,7 +222,7 @@ test('exchange actions keep branch and sources immediately after reply', () => {
       onBranch={() => undefined}
       turnIdForActions="turn-1"
       actionsLocked={false}
-      webSources={[
+      sources={[
         {
           url: 'https://example.com/source',
           title: 'Source',
@@ -171,4 +242,12 @@ test('exchange actions keep branch and sources immediately after reply', () => {
   assert.ok(replyIndex >= 0)
   assert.ok(replyIndex < branchIndex)
   assert.ok(branchIndex < sourcesIndex)
+})
+
+test('sent-message actions copy the original Markdown payload', () => {
+  const markdown = '[x.com](<https://x.com/todaywasawesome/status/1961234567890123456>)'
+  const markup = renderToStaticMarkup(<UserMessageActions markdown={markdown} />)
+
+  assert.match(markup, /aria-label="Copy sent message as Markdown"/)
+  assert.doesNotMatch(markup, /disabled=""/)
 })

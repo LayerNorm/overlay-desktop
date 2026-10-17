@@ -1,0 +1,366 @@
+export const AGENT_ENVIRONMENT_KINDS = ['local', 'vps', 'overlay_cloud', 'external'] as const
+export type AgentEnvironmentKind = (typeof AGENT_ENVIRONMENT_KINDS)[number]
+
+export const AGENT_ENVIRONMENT_STATUSES = ['pending', 'online', 'offline', 'revoked'] as const
+export type AgentEnvironmentStatus = (typeof AGENT_ENVIRONMENT_STATUSES)[number]
+
+export type AgentFilesystemGrant =
+  | { mode: 'selected_roots'; roots: string[] }
+  | { mode: 'all_user_files' }
+
+export type AgentEnvironment = {
+  id: string
+  workspaceId: string
+  kind: AgentEnvironmentKind
+  name: string
+  status: AgentEnvironmentStatus
+  publicKey?: string
+  hostVersion?: string
+  platform?: string
+  capabilities: Record<string, unknown>
+  filesystemGrant?: AgentFilesystemGrant
+  approvedAt?: number
+  approvedByUserId?: string
+  lastSeenAt?: number
+  revokedAt?: number
+  createdAt: number
+  updatedAt: number
+}
+
+export const AGENT_PROTOCOL_ADAPTERS = ['acp', 'eve', 'native', 'harness'] as const
+export type AgentProtocolAdapter = (typeof AGENT_PROTOCOL_ADAPTERS)[number]
+
+/**
+ * User-owned ACP harnesses that Overlay can start with the one-copy enrollment command.
+ * Keep this separate from the managed-sandbox allowlist: being built in must never imply
+ * that Overlay Cloud is released for the same harness.
+ */
+export const BUILT_IN_USER_OWNED_ACP_ADAPTER_IDS = ['codex', 'claude-code', 'hermes'] as const
+export type BuiltInUserOwnedAcpAdapterId = (typeof BUILT_IN_USER_OWNED_ACP_ADAPTER_IDS)[number]
+
+export function isBuiltInUserOwnedAcpAdapterId(value: unknown): value is BuiltInUserOwnedAcpAdapterId {
+  return typeof value === 'string'
+    && (BUILT_IN_USER_OWNED_ACP_ADAPTER_IDS as readonly string[]).includes(value)
+}
+
+/**
+ * Agent harnesses Overlay Cloud can host in managed sandboxes through the AI
+ * SDK HarnessAgent. Kept separate
+ * from `BUILT_IN_USER_OWNED_ACP_ADAPTER_IDS` (user-owned machines) and
+ * `OVERLAY_MANAGED_ACP_ADAPTER_IDS` (the agent-host managed path) — the same
+ * separation-of-allowlists rule applies: being listed here must never imply
+ * availability on another surface.
+ */
+export const MANAGED_HARNESS_IDS = [
+  'claude-code', 'codex', 'opencode', 'pi', 'hermes',
+] as const
+export type ManagedHarnessId = (typeof MANAGED_HARNESS_IDS)[number]
+
+export function isManagedHarnessId(value: unknown): value is ManagedHarnessId {
+  return typeof value === 'string'
+    && (MANAGED_HARNESS_IDS as readonly string[]).includes(value)
+}
+
+export type AgentBinding = {
+  id: string
+  workspaceId: string
+  agentId: string
+  environmentId: string
+  protocolAdapter: AgentProtocolAdapter
+  adapterConfig: Record<string, unknown>
+  enabled: boolean
+  createdAt: number
+  updatedAt: number
+}
+
+/**
+ * `adapterConfig` shape for `protocolAdapter: 'harness'` bindings — an agent
+ * bound to an `overlay_cloud` environment running an AI SDK HarnessAgent.
+ * `provider` records which managed sandbox provider hosts the harness.
+ */
+export type HarnessAgentBindingConfig = {
+  harnessId: ManagedHarnessId
+  workingDirectory: string
+  provider?: string
+  /**
+   * `overlay` marks the turn's model usage as Overlay-funded for billing;
+   * `byok` means the turn authenticates the harness with the customer's own
+   * provider connection (Vercel-hosted sandboxes only — the key reaches the
+   * sandbox exclusively through request transformations at the boundary).
+   */
+  modelBilling?: 'overlay' | 'byok'
+  /** Harness-facing model string (e.g. `sonnet`); absent means the harness default. */
+  model?: string
+  /** Provider connection (`byok_connections` id) backing `modelBilling:'byok'`. */
+  byokConnectionId?: string
+  /** User who owns the BYOK connection — connections are per-user, so turns triggered by other members resolve the key under the configurer's identity. */
+  byokConnectionUserId?: string
+}
+
+export function parseHarnessAgentBindingConfig(value: unknown): HarnessAgentBindingConfig | null {
+  if (typeof value !== 'object' || value === null) return null
+  const candidate = value as Record<string, unknown>
+  if (!isManagedHarnessId(candidate.harnessId)) return null
+  if (typeof candidate.workingDirectory !== 'string' || !candidate.workingDirectory.trim()) return null
+  if (candidate.provider !== undefined && typeof candidate.provider !== 'string') return null
+  if (candidate.modelBilling !== undefined
+    && candidate.modelBilling !== 'overlay'
+    && candidate.modelBilling !== 'byok') return null
+  if (candidate.model !== undefined && typeof candidate.model !== 'string') return null
+  if (candidate.byokConnectionId !== undefined && typeof candidate.byokConnectionId !== 'string') return null
+  if (candidate.byokConnectionUserId !== undefined && typeof candidate.byokConnectionUserId !== 'string') return null
+  if (candidate.modelBilling === 'byok' && typeof candidate.byokConnectionId !== 'string') return null
+  return {
+    harnessId: candidate.harnessId,
+    workingDirectory: candidate.workingDirectory,
+    ...(typeof candidate.provider === 'string' ? { provider: candidate.provider } : {}),
+    ...(candidate.modelBilling === 'overlay' || candidate.modelBilling === 'byok'
+      ? { modelBilling: candidate.modelBilling }
+      : {}),
+    ...(typeof candidate.model === 'string' ? { model: candidate.model } : {}),
+    ...(typeof candidate.byokConnectionId === 'string' ? { byokConnectionId: candidate.byokConnectionId } : {}),
+    ...(typeof candidate.byokConnectionUserId === 'string' ? { byokConnectionUserId: candidate.byokConnectionUserId } : {}),
+  }
+}
+
+/**
+ * Durable HarnessAgent session record, keyed per binding + conversation.
+ * `resumeState` is the opaque HarnessAgent `resumeFrom`/`continueFrom`
+ * payload — the server persists it verbatim so a later turn can resume the
+ * harness's native conversation without replaying transcript history.
+ */
+export type AgentHarnessSession = {
+  id: string
+  workspaceId: string
+  bindingId: string
+  conversationId: string
+  harnessId: string
+  /** Harness-side session id returned by `HarnessAgentSession.sessionId`. */
+  sessionId?: string
+  resumeState?: Record<string, unknown>
+  createdAt: number
+  updatedAt: number
+}
+
+export const AGENT_RUN_COMMAND_TYPES = [
+  'start', 'prompt', 'cancel', 'approval_response', 'elicitation_response', 'reconnect', 'observe', 'shutdown',
+] as const
+export type AgentRunCommandType = (typeof AGENT_RUN_COMMAND_TYPES)[number]
+export const AGENT_RUN_COMMAND_STATUSES = ['coordinator_pending', 'pending', 'claimed', 'acknowledged', 'cancelled'] as const
+export type AgentRunCommandStatus = (typeof AGENT_RUN_COMMAND_STATUSES)[number]
+
+export type AgentRunCommand = {
+  attemptId?: string
+  executionGeneration?: number
+  id: string
+  workspaceId: string
+  environmentId: string
+  runId: string
+  type: AgentRunCommandType
+  sequence: number
+  payload: Record<string, unknown>
+  status: AgentRunCommandStatus
+  claimedAt?: number
+  claimExpiresAt?: number
+  acknowledgedAt?: number
+  createdAt: number
+  updatedAt: number
+}
+
+export const AGENT_REMOTE_SESSION_STATUSES = [
+  'starting', 'running', 'waiting_for_approval', 'waiting_for_input', 'recovering',
+  'completed', 'failed', 'cancelled',
+] as const
+export type AgentRemoteSessionStatus = (typeof AGENT_REMOTE_SESSION_STATUSES)[number]
+
+export type AgentRemoteSession = {
+  attemptId?: string
+  executionGeneration?: number
+  hostBootId?: string
+  lastHealthAt?: number
+  lastProgressAt?: number
+  hardDeadlineAt?: number
+  claimDeadlineAt?: number
+  checkpointReference?: string
+  recoveryCause?: string
+  recoveryResult?: string
+  id: string
+  workspaceId: string
+  environmentId: string
+  bindingId: string
+  runId: string
+  remoteSessionId?: string
+  status: AgentRemoteSessionStatus
+  commandCursor: number
+  eventCursor: number
+  capabilitySnapshot: Record<string, unknown>
+  startedAt?: number
+  endedAt?: number
+  createdAt: number
+  updatedAt: number
+}
+
+export type AgentApprovalResolution = {
+  decision: string
+  response?: unknown
+  resolvedByPrincipalId: string
+  resolvedAt: number
+}
+
+export const AGENT_REMOTE_REQUEST_KINDS = ['permission', 'elicitation'] as const
+export type AgentRemoteRequestKind = (typeof AGENT_REMOTE_REQUEST_KINDS)[number]
+
+export type AgentApprovalRequest = {
+  id: string
+  workspaceId: string
+  runId: string
+  remoteSessionId: string
+  requestKey: string
+  kind: AgentRemoteRequestKind
+  prompt: string
+  options: string[]
+  payload: Record<string, unknown>
+  requestedAt: number
+  resolution?: AgentApprovalResolution
+}
+
+export const AGENT_SANDBOX_LEASE_STATUSES = [
+  'reserved', 'provisioning', 'running', 'stopping', 'released', 'cleanup_failed',
+] as const
+export type AgentSandboxLeaseStatus = (typeof AGENT_SANDBOX_LEASE_STATUSES)[number]
+
+export type AgentSandboxLease = {
+  id: string
+  workspaceId: string
+  environmentId: string
+  runId?: string
+  provider: string
+  providerReference?: string
+  status: AgentSandboxLeaseStatus
+  reservationId?: string
+  reservedUntil: number
+  runtimeStartedAt?: number
+  runtimeEndedAt?: number
+  usage: Record<string, unknown>
+  cleanupAttempts: number
+  cleanupAfter?: number
+  createdAt: number
+  updatedAt: number
+}
+
+export const AGENT_REMOTE_EVENT_TYPES = [
+  'process_observation',
+  'session_started', 'text_checkpoint', 'action', 'approval_requested', 'elicitation_requested',
+  'plan', 'commands_update', 'diff', 'terminal', 'artifact', 'completed', 'failed', 'cancelled',
+] as const
+export type AgentRemoteEventType = (typeof AGENT_REMOTE_EVENT_TYPES)[number]
+
+export type AgentRemoteEvent = {
+  execution?: { attemptId: string; generation: number; hostBootId?: string }
+  protocolVersion: number
+  eventId: string
+  environmentId: string
+  runId: string
+  sourceSequence: number
+  type: AgentRemoteEventType
+  occurredAt: number
+  payload: Record<string, unknown>
+}
+
+export const AGENT_ARTIFACT_STATUSES = [
+  'pending_upload', 'scanning', 'clean', 'rejected', 'linked', 'deleted',
+] as const
+export type AgentArtifactStatus = (typeof AGENT_ARTIFACT_STATUSES)[number]
+
+/** Server-owned artifact metadata; hosts provide only the declared upload values. */
+export type AgentArtifact = {
+  id: string
+  workspaceId: string
+  environmentId: string
+  runId: string
+  remoteSessionId: string
+  name: string
+  mediaType: string
+  size: number
+  sha256: string
+  objectKey: string
+  status: AgentArtifactStatus
+  scanResult?: string
+  expiresAt: number
+  linkedAt?: number
+  deletedAt?: number
+  createdAt: number
+  updatedAt: number
+}
+
+export const AGENT_ENROLLMENT_SESSION_STATUSES = ['created', 'redeemed', 'approved', 'expired'] as const
+export type AgentEnrollmentSessionStatus = (typeof AGENT_ENROLLMENT_SESSION_STATUSES)[number]
+
+/** Security-sensitive persistence record. `codeHash` is never returned by a public API. */
+export type AgentEnrollmentSession = {
+  id: string
+  workspaceId: string
+  createdByUserId: string
+  codeHash: string
+  verificationPhrase: string
+  status: AgentEnrollmentSessionStatus
+  expiresAt: number
+  environmentId?: string
+  redeemedAt?: number
+  approvedAt?: number
+  maxEnvironments?: number
+  createdAt: number
+  updatedAt: number
+}
+
+export type AgentEnvironmentProofChallenge = {
+  id: string
+  workspaceId: string
+  environmentId: string
+  challengeHash: string
+  expiresAt: number
+  consumedAt?: number
+  createdAt: number
+}
+
+export const AGENT_ENVIRONMENT_CREDENTIAL_AUDIENCE = 'overlay-agent-control-plane' as const
+export const AGENT_ENVIRONMENT_CREDENTIAL_METHODS = [
+  'agent:heartbeat',
+  'agent:capabilities:update',
+  'agent:commands:poll',
+  'agent:commands:ack',
+  'agent:events:write',
+  'agent:artifacts:write',
+  'agent:credentials:refresh',
+  /** Overlay Cloud machines only: fetch the provider credentials for one of their runs. */
+  'agent:run-credentials',
+] as const
+export type AgentEnvironmentCredentialMethod = (typeof AGENT_ENVIRONMENT_CREDENTIAL_METHODS)[number]
+
+/** Security-sensitive persistence record. Only a SHA-256 token hash is stored. */
+export type AgentEnvironmentCredential = {
+  id: string
+  workspaceId: string
+  environmentId: string
+  tokenHash: string
+  audience: typeof AGENT_ENVIRONMENT_CREDENTIAL_AUDIENCE
+  methods: AgentEnvironmentCredentialMethod[]
+  tokenNonce: string
+  expiresAt: number
+  revokedAt?: number
+  createdAt: number
+}
+
+export type AgentEnvironmentProofNonce = {
+  id: string
+  credentialId: string
+  nonceHash: string
+  expiresAt: number
+  createdAt: number
+}
+
+export type AgentEnvironmentEnrollmentView = {
+  environment: AgentEnvironment
+  verificationPhrase: string
+  enrollmentExpiresAt: number
+}

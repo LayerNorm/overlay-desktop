@@ -51,7 +51,7 @@ test('selects multi-model responses by model, then index, then first response', 
 
 test('derives loading, terminal, interruption, and error statuses with stable precedence', () => {
   assert.equal(deriveChatExchangeStatus({ runtimeStatus: 'submitted' }), 'submitted')
-  assert.equal(deriveChatExchangeStatus({ persistedStatus: 'generating' }), 'streaming')
+  assert.equal(deriveChatExchangeStatus({ persistedStatus: 'generating' }), 'idle')
   assert.equal(deriveChatExchangeStatus({ runtimeStatus: 'executing_tool' }), 'executing-tool')
   assert.equal(deriveChatExchangeStatus({ hasResponse: true }), 'completed')
   assert.equal(deriveChatExchangeStatus({ interrupted: true, hasResponse: true }), 'interrupted')
@@ -102,6 +102,54 @@ test('normalizes ordered reasoning, tool, text, file, generated UI, and source p
     url: 'https://example.test',
     originIndex: 4,
   }])
+})
+
+test('normalizes AI SDK source parts and settles stale tools after a completed response', () => {
+  const normalized = normalizeTranscriptAssistantParts([
+    {
+      type: 'tool-web_search',
+      toolCallId: 'search-1',
+      state: 'input-available',
+      input: { query: 'release notes' },
+      output: { sources: [{ url: 'https://example.test/release' }] },
+    },
+    {
+      type: 'source-url',
+      sourceId: 'source-1',
+      url: 'https://example.test/release',
+      title: 'Release notes',
+    },
+    {
+      type: 'source-document',
+      sourceId: 'document-1',
+      mediaType: 'application/pdf',
+      title: 'Launch brief',
+      filename: 'launch.pdf',
+    },
+  ], { terminalState: 'completed' })
+
+  const tool = normalized.blocks.find((block) => block.kind === 'tool')
+  assert.equal(tool?.kind === 'tool' ? tool.state : null, 'output-available')
+  assert.deepEqual(normalized.sources.map((source) => ({
+    kind: source.sourceKind,
+    id: source.sourceId,
+    url: source.url,
+  })), [
+    { kind: 'url', id: 'source-1', url: 'https://example.test/release' },
+    { kind: 'document', id: 'document-1', url: undefined },
+  ])
+})
+
+test('preserves tool input failures after a completed response', () => {
+  const normalized = normalizeTranscriptAssistantParts([{
+    type: 'tool-web_search',
+    toolCallId: 'search-failed',
+    state: 'input-error',
+    input: { query: 'release notes' },
+  }], { terminalState: 'completed' })
+
+  const tool = normalized.blocks.find((block) => block.kind === 'tool')
+  assert.equal(tool?.kind === 'tool' ? tool.state : null, 'output-error')
 })
 
 test('restores image and video output groups without sharing mutable result objects', () => {

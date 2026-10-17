@@ -31,11 +31,11 @@ test('shared surface preserves the web files markup and controls', () => {
     />,
   )
   assert.match(html, /overlay-knowledge-surface/)
-  assert.match(html, /Files/)
+  assert.match(html, /All/)
   assert.match(html, /Projects/)
   assert.match(html, /Parity note/)
   assert.match(html, /overlay-knowledge-list/)
-  assert.match(html, /title="Search files"/)
+  assert.match(html, /aria-label="Search files"/)
   assert.match(html, /aria-label="List layout" aria-pressed="true"/)
 })
 

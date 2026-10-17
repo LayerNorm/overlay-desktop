@@ -10,13 +10,13 @@ import type {
   OutputSummary,
   OverlaySettingsPanel,
   OverlaySettingsSection,
-  ProjectSummary,
   SkillSummary,
 } from '@overlay/app-core'
 import {
   AccountSubscriptionCard,
   AutomationEditorForm,
   AutomationGraphCanvas,
+  AutomationGraphPreview,
   AutomationsInlineList,
   BillingControlsPanel,
   ExtensionCatalog,
@@ -25,8 +25,6 @@ import {
   MemoryList,
   NotesEditorShell,
   OutputGallery,
-  ProjectDetail,
-  ProjectTree,
   SettingsCard,
   SettingsPageShell,
   SettingsSectionRenderer,
@@ -36,9 +34,9 @@ import { useRef } from 'react'
 
 const now = Date.now()
 
-const panelClass = 'rounded-2xl border border-[var(--border)] bg-[var(--surface-elevated)] p-6'
-const headingClass = 'text-[var(--foreground)]'
-const mutedClass = 'text-[var(--muted)]'
+const panelClass = 'rounded-2xl border border-(--border) bg-(--surface-elevated) p-6'
+const headingClass = 'text-(--foreground)'
+const mutedClass = 'text-(--muted)'
 
 const paidEntitlements: AccountEntitlements = {
   tier: 'pro',
@@ -131,11 +129,6 @@ const notes: NoteDoc[] = [
   { _id: 'note-2', title: 'Customer Brief', content: 'Summarize deployment requirements.', tags: [], createdAt: now, updatedAt: now },
 ]
 
-const projects: ProjectSummary[] = [
-  { _id: 'project-1', name: 'Enterprise Rollout', instructions: 'Keep docs concise.', parentId: null, createdAt: now, updatedAt: now },
-  { _id: 'project-2', name: 'Security', parentId: 'project-1', createdAt: now, updatedAt: now },
-]
-
 const composioCapabilities = {
   provider: 'composio' as const,
   hosted: true,
@@ -201,19 +194,6 @@ export function NotesEditorShellStory() {
   )
 }
 
-export function ProjectTreeDetailStory() {
-  return (
-    <div className="flex h-[520px]">
-      <div className="w-72 border-r border-[var(--border)]">
-        <ProjectTree nodes={buildTree(projects)} selectedProjectId="project-1" />
-      </div>
-      <div className="flex-1">
-        <ProjectDetail project={projects[0]!} notes={notes} files={files} />
-      </div>
-    </div>
-  )
-}
-
 export function ExtensionCatalogStory() {
   return <ExtensionCatalog items={[...integrations, ...skills, ...mcps]} policyDisabledIds={new Set(['slack'])} />
 }
@@ -244,7 +224,7 @@ export function SettingsRendererStory() {
         panels={settingsPanels}
         activeSectionId="security"
         renderPanel={(panel) => (
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-4 text-sm">
+          <div className="rounded-lg border border-(--border) bg-(--surface-elevated) p-4 text-sm">
             Rendered by <code>{panel.componentKey}</code>
           </div>
         )}
@@ -261,7 +241,7 @@ export function SettingsPageShellStory() {
         actions={
           <button
             type="button"
-            className="rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)]"
+            className="rounded-lg border border-(--border) bg-(--surface-subtle) px-3 py-1.5 text-xs font-medium text-(--foreground)"
           >
             Save
           </button>
@@ -301,7 +281,7 @@ export function AutomationsInlineListStory() {
 export function AutomationGraphCanvasStory() {
   return (
     <div className="h-[420px] p-4">
-      <AutomationGraphCanvas source={sampleFlowSource} onSourceChange={() => undefined} />
+      <AutomationGraphPreview source={sampleFlowSource} />
     </div>
   )
 }
@@ -320,7 +300,6 @@ export function AutomationEditorFormStory() {
         time="09:00"
         dayOfWeek={1}
         dayOfMonth={1}
-        graphSource={sampleFlowSource}
         modelId="gpt-4.1"
         timeZoneOptions={[{ value: 'America/Los_Angeles', label: 'Pacific Time', offsetMinutes: -480 }]}
         modelOptions={[{ id: 'gpt-4.1', name: 'GPT-4.1' }]}
@@ -336,7 +315,6 @@ export function AutomationEditorFormStory() {
         onTimeChange={() => undefined}
         onDayOfWeekChange={() => undefined}
         onDayOfMonthChange={() => undefined}
-        onGraphSourceChange={() => undefined}
         onModelIdChange={() => undefined}
         onSave={() => undefined}
         onTest={() => undefined}
@@ -344,7 +322,7 @@ export function AutomationEditorFormStory() {
           <textarea
             value={value}
             onChange={(event) => onChange(event.target.value)}
-            className="mt-1 min-h-32 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm"
+            className="mt-1 min-h-32 w-full rounded-xl border border-(--border) bg-(--background) px-3 py-2 text-sm"
           />
         )}
       />
@@ -363,7 +341,7 @@ export function AccountSubscriptionCardStory() {
         actions={
           <button
             type="button"
-            className="rounded-lg bg-[var(--foreground)] px-3 py-1.5 text-xs font-medium text-[var(--background)]"
+            className="rounded-lg bg-(--foreground) px-3 py-1.5 text-xs font-medium text-(--background)"
           >
             Manage billing
           </button>
@@ -377,7 +355,7 @@ export function BillingControlsPanelStory() {
   return (
     <div className="max-w-2xl p-4">
       <BillingControlsPanel panelClass={panelClass} headingClass={headingClass} mutedClass={mutedClass}>
-        <p className="text-sm text-[var(--muted)]">Top-up preference controls render here from the app shell.</p>
+        <p className="text-sm text-(--muted)">Top-up preference controls render here from the app shell.</p>
       </BillingControlsPanel>
     </div>
   )
@@ -385,7 +363,7 @@ export function BillingControlsPanelStory() {
 
 export function KnowledgeFileDetailPanelEditableStory() {
   return (
-    <div className="max-w-3xl border border-[var(--border)] bg-[var(--background)] p-4">
+    <div className="max-w-3xl border border-(--border) bg-(--background) p-4">
       <KnowledgeFileDetailPanel
         fileName="runbook.md"
         isEditable
@@ -399,14 +377,14 @@ export function KnowledgeFileDetailPanelEditableStory() {
 
 export function KnowledgeFileDetailPanelPreviewStory() {
   return (
-    <div className="max-w-3xl border border-[var(--border)] bg-[var(--background)] p-4">
+    <div className="max-w-3xl border border-(--border) bg-(--background) p-4">
       <KnowledgeFileDetailPanel
         fileName="Security FAQ.pdf"
         isEditable={false}
         fileContent=""
         onContentChange={() => undefined}
         renderViewer={() => (
-          <div className="flex flex-1 items-center justify-center text-sm text-[var(--muted)]">
+          <div className="flex flex-1 items-center justify-center text-sm text-(--muted)">
             PDF preview slot
           </div>
         )}

@@ -11,6 +11,47 @@ export function safeHttpUrl(raw: string | undefined | null): string | null {
   }
 }
 
+const HTML_ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  '#39': "'",
+}
+
+/**
+ * Plain prose for a source subtitle.
+ *
+ * Snippets come straight out of indexed documents and search results, so they
+ * arrive as raw HTML or markdown. Tags and syntax characters have no business
+ * in a one-line subtitle, and a fragment cut mid-tag looks broken.
+ */
+export function plainTextSnippet(raw: string | undefined | null): string {
+  if (!raw) return ''
+  let text = raw
+  // Drop whole elements whose text content is not prose.
+  text = text.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+  // Block-level tags become spaces so words on either side stay separated.
+  text = text.replace(/<[^>]*>/g, ' ')
+  // A fragment can start or end mid-tag; drop the dangling halves.
+  text = text.replace(/^[^<]*?>/, '').replace(/<[^>]*$/, '')
+  text = text.replace(/&([a-z]+|#\d+);/gi, (match, entity: string) => (
+    HTML_ENTITIES[entity.toLowerCase()] ?? match
+  ))
+  // Markdown: images, links (keep the label), fences, and leading syntax.
+  text = text.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+  text = text.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+  text = text.replace(/```[a-z]*/gi, ' ')
+  text = text.replace(/^\s{0,3}#{1,6}\s+/gm, '')
+  text = text.replace(/^\s{0,3}>\s?/gm, '')
+  text = text.replace(/^\s{0,3}([-*+]|\d+\.)\s+/gm, '')
+  // Emphasis, inline code, and strikethrough markers.
+  text = text.replace(/(\*\*|__|~~|\*|_|`)/g, '')
+  return text.replace(/\s+/g, ' ').trim()
+}
+
 export function webSourceDisplayKey(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./i, '')
@@ -134,6 +175,16 @@ function collectSourceCandidatesFromUnknown(
   }
 }
 
+function isWebSearchToolName(name: string): boolean {
+  return (
+    name === 'perplexity_search' ||
+    name === 'parallel_search' ||
+    name === 'web_search' ||
+    name === 'deep_search' ||
+    name === 'web_fetch'
+  )
+}
+
 export function collectWebSourcesFromBlocks(blocks: AssistantVisualBlock[]): WebSourceItem[] {
   const items: WebSourceItem[] = []
   const seen = new Set<string>()
@@ -143,12 +194,15 @@ export function collectWebSourcesFromBlocks(blocks: AssistantVisualBlock[]): Web
     if (
       block.name !== 'perplexity_search' &&
       block.name !== 'parallel_search' &&
+      block.name !== 'web_search' &&
+      block.name !== 'deep_search' &&
+      block.name !== 'web_fetch' &&
       block.name !== 'browser_run_task' &&
       block.name !== 'interactive_browser_session'
     ) continue
     collectSourceCandidatesFromUnknown(
       block.toolOutput,
-      block.name === 'perplexity_search' || block.name === 'parallel_search' ? 'web-search' : 'browser',
+      isWebSearchToolName(block.name) ? 'web-search' : 'browser',
       items,
       seen,
     )
@@ -162,7 +216,7 @@ export function collectWebSourcesFromSingleBlock(block: ToolVisualBlock): WebSou
   const seen = new Set<string>()
   collectSourceCandidatesFromUnknown(
     block.toolOutput,
-    block.name === 'perplexity_search' || block.name === 'parallel_search' ? 'web-search' : 'browser',
+    isWebSearchToolName(block.name) ? 'web-search' : 'browser',
     items,
     seen,
   )

@@ -8,9 +8,7 @@ import {
   createNotebookFileUpdateRequest,
   createNotebookPersistedNote,
   createRenamedNotebookNote,
-  markdownToNotebookHtml,
   notebookAgentEventToUiItem,
-  normalizeNotebookContent,
   normalizeNotebookTitle,
   noteDocToKnowledgeFile,
   parseNotebookAgentStreamLine,
@@ -23,7 +21,6 @@ test('canonical note files map to notebook notes', () => {
     _id: 'note_1',
     name: 'Plan',
     textContent: 'Body',
-    projectId: 'proj_1',
     createdAt: 1,
     updatedAt: 2,
     shareVisibility: 'public',
@@ -33,7 +30,6 @@ test('canonical note files map to notebook notes', () => {
     title: 'Plan',
     content: 'Body',
     tags: [],
-    projectId: 'proj_1',
     createdAt: 1,
     updatedAt: 2,
     shareVisibility: 'public',
@@ -61,7 +57,6 @@ test('dedicated note records map into the file-list contract', () => {
     title: 'Architecture notes',
     content: '<p>Postgres</p>',
     tags: [],
-    projectId: 'project_1',
     createdAt: 10,
     updatedAt: 20,
   }), {
@@ -76,7 +71,6 @@ test('dedicated note records map into the file-list contract', () => {
     sizeBytes: 15,
     createdAt: 10,
     updatedAt: 20,
-    projectId: 'project_1',
   })
 })
 
@@ -121,7 +115,6 @@ test('notebook controllers derive draft, persisted, and renamed state', () => {
     title: 'Saved',
     content: '<p>Body</p>',
     tags: [],
-    projectId: undefined,
     createdAt: 10,
     updatedAt: 20,
     shareVisibility: undefined,
@@ -154,14 +147,4 @@ test('notebook agent stream helpers parse events and map UI items', () => {
   })
   assert.equal(notebookAgentEventToUiItem({ type: 'text', text: '  ' }), null)
   assert.equal(notebookAgentEventToUiItem({ type: 'done' }), null)
-})
-
-test('markdown normalization preserves html and converts plain markdown', () => {
-  assert.equal(normalizeNotebookContent('<p>Already HTML</p>'), '<p>Already HTML</p>')
-  assert.equal(normalizeNotebookContent(''), '')
-  assert.equal(markdownToNotebookHtml('# Heading\n\n- **Task**'), '<h1>Heading</h1><ul><li><p><strong>Task</strong></p></li></ul>')
-  assert.equal(
-    normalizeNotebookContent('| A | B |\n| - | :-: |\n| 1 | 2 |'),
-    '<table><thead><tr><th>A</th><th style="text-align: center;">B</th></tr></thead><tbody><tr><td>1</td><td style="text-align: center;">2</td></tr></tbody></table>',
-  )
 })

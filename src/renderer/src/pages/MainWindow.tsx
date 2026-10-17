@@ -7,7 +7,6 @@ import {
   BookOpen,
   Globe,
   Mic,
-  FolderOpen,
   FileText,
   ChevronLeft,
   ChevronRight,
@@ -26,7 +25,6 @@ import { AgentsDirectoryPage } from './AgentsDirectoryPage'
 import { AgentDetailPage } from './AgentDetailPage'
 import { AgentEditorPanel } from './AgentEditorPanel'
 import { TranscriptionListPage } from './TranscriptionListPage'
-import { ProjectsListPage } from './ProjectsListPage'
 import { FilesListPage } from './FilesListPage'
 import {
   AutomationsListPage,
@@ -39,7 +37,6 @@ import { ChatErrorBoundary } from '../components/chat/ChatErrorBoundary'
 import { DesktopNotebookEditor } from '../features/notebook/DesktopNotebookEditor'
 import { BrowserListPage } from './BrowserListPage'
 import { BrowserPanel } from './BrowserPanel'
-import { ProjectDetailPage } from './ProjectDetailPage'
 import { OutputPreviewPage } from './OutputPreviewPage'
 import { RemoteFilePreviewPage } from './RemoteFilePreviewPage'
 import { LocalDocumentPreviewPage } from './LocalDocumentPreviewPage'
@@ -53,14 +50,11 @@ import { FILES_RECONCILE_EVENT } from './fileListRefresh'
 import { fetchDesktopFileList } from '../services/files-list-cache'
 import { prehydrateDesktopIntegrations } from '../services/integrations-cache'
 import { createNewChat, setLastOpenedChatId } from '../utils/chatStorage'
-import { PROJECTS_CHANGED_EVENT } from '../utils/projectStorage'
-import { desktopAppJson } from '../services/app-api-client'
 import { subscribeWorkspaceChanged } from '../services/workspace-store'
 import { useWorkspace } from '../contexts/WorkspaceContext'
 
 type ActiveTool =
   | 'home'
-  | 'projects'
   | 'chat'
   | 'agents'
   | 'files'
@@ -92,14 +86,12 @@ const SIDEBAR_TOOLS: {
   { id: 'chat', icon: MessageSquare, label: 'chats' },
   { id: 'files', icon: FileText, label: 'files' },
   { id: 'extensions', icon: Puzzle, label: 'extensions' },
-  { id: 'projects', icon: FolderOpen, label: 'projects' },
   { id: 'automations', icon: Workflow, label: 'automations' },
   { id: 'browser', icon: Globe, label: 'browser' },
   { id: 'transcriptions', icon: Mic, label: 'voice' }
 ]
 
 const PANEL_TITLES: Partial<Record<ActiveTool, string>> = {
-  projects: 'projects',
   chat: 'chats',
   agents: 'agents',
   files: 'files',
@@ -150,13 +142,11 @@ export function MainWindow({
   const [selectedOutputId, setSelectedOutputId] = useState<string | null>(null)
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
   const [selectedLocalDocumentId, setSelectedLocalDocumentId] = useState<string | null>(null)
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
-  const [projectsRefreshToken, setProjectsRefreshToken] = useState(0)
   const [automationsRefreshToken, setAutomationsRefreshToken] = useState(0)
   const [activeExtensionView, setActiveExtensionView] = useState<ExtensionView>('connectors')
   const [accountOpen, setAccountOpen] = useState(false)
   const { activeWorkspace, activeWorkspaceId } = useWorkspace()
-  // Keying the workspace surface forces every list (chats, files, projects,
+  // Keying the workspace surface forces every list (chats, files,
   // automations, memories, skills, agents) to remount and refetch under the
   // new scope. Module caches were already dropped before the change event.
   const workspaceSurfaceKey = activeWorkspaceId ?? 'no-workspace'
@@ -170,7 +160,6 @@ export function MainWindow({
       const raw = localStorage.getItem(PANEL_COLLAPSED_KEY)
       const parsed = raw ? (JSON.parse(raw) as Record<string, boolean>) : {}
       return {
-        projects: parsed.projects ?? false,
         chat: parsed.chat ?? false,
         agents: parsed.agents ?? false,
         files: parsed.files ?? false,
@@ -181,7 +170,6 @@ export function MainWindow({
       }
     } catch {
       return {
-        projects: false,
         chat: false,
         agents: false,
         files: false,
@@ -304,20 +292,17 @@ export function MainWindow({
     setSelectedOutputId(null)
     setSelectedFileId(null)
     setSelectedLocalDocumentId(null)
-    setSelectedProjectId(null)
   }, [])
 
   // Selections and list state are workspace-scoped on the server. When the
   // workspace changes, drop the current selection and reload the lists so a
-  // previous workspace's automations/projects never render as current.
+  // previous workspace's automations never render as current.
   useEffect(() => {
     return subscribeWorkspaceChanged(() => {
       resetEmbeddedSelections()
       setAccountOpen(false)
       setAutomationsRefreshToken((prev) => prev + 1)
-      setProjectsRefreshToken((prev) => prev + 1)
       window.dispatchEvent(new Event(AUTOMATIONS_UPDATED_EVENT))
-      window.dispatchEvent(new Event(PROJECTS_CHANGED_EVENT))
     })
   }, [resetEmbeddedSelections])
 
@@ -408,23 +393,6 @@ export function MainWindow({
     } else {
       setSelectedAutomationChatId(null)
     }
-  }, [])
-
-  const handleNewProject = useCallback((): void => {
-    void desktopAppJson('/api/v1/projects', {
-      method: 'POST',
-      body: JSON.stringify({ name: 'New Project' })
-    })
-      .then((result) => {
-        const projectId =
-          (result as { project?: { _id?: string }; id?: string }).project?._id ||
-          (result as { id?: string }).id
-        if (projectId) setSelectedProjectId(projectId)
-      })
-      .finally(() => {
-        window.dispatchEvent(new Event(PROJECTS_CHANGED_EVENT))
-        setProjectsRefreshToken((prev) => prev + 1)
-      })
   }, [])
 
   const handleAddFile = useCallback((): void => {
@@ -552,8 +520,6 @@ export function MainWindow({
 
   const getHeaderActions = (): HeaderAction[] => {
     switch (activeTool) {
-      case 'projects':
-        return [{ key: 'new-project', title: 'New project', icon: Plus, onClick: handleNewProject }]
       case 'chat':
         return [
           {
@@ -657,7 +623,6 @@ export function MainWindow({
     (activeTool === 'files' && selectedOutputId) ||
     (activeTool === 'files' && selectedFileId) ||
     (activeTool === 'files' && selectedLocalDocumentId) ||
-    (activeTool === 'projects' && selectedProjectId) ||
     activeTool === 'extensions' ||
     activeTool === 'browser'
 
@@ -992,14 +957,6 @@ export function MainWindow({
               <div
                 style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
               >
-                {activeTool === 'projects' && (
-                  <ProjectsListPage
-                    theme={theme}
-                    refreshToken={projectsRefreshToken}
-                    selectedProjectId={selectedProjectId}
-                    onSelectProject={setSelectedProjectId}
-                  />
-                )}
                 {activeTool === 'chat' && (
                   <ChatsListPage
                     theme={theme}
@@ -1358,24 +1315,6 @@ export function MainWindow({
               </div>
             )}
 
-            {activeTool === 'projects' && selectedProjectId && (
-              <div
-                key={selectedProjectId}
-                style={{ width: '100%', height: '100%', animation: 'mainFadeIn 0.15s ease-out' }}
-              >
-                <ProjectDetailPage
-                  projectId={selectedProjectId}
-                  theme={theme}
-                  headerLeftSlot={expandButton}
-                  onOpenChat={(chatId) => {
-                    setLastOpenedChatId(chatId)
-                    setSelectedChatId(chatId)
-                    setActiveTool('chat')
-                  }}
-                />
-              </div>
-            )}
-
             {activeTool === 'extensions' && (
               <div
                 style={{
@@ -1412,7 +1351,6 @@ export function MainWindow({
               !(activeTool === 'files' && selectedOutputId) &&
               !(activeTool === 'files' && selectedFileId) &&
               !(activeTool === 'files' && selectedLocalDocumentId) &&
-              !(activeTool === 'projects' && selectedProjectId) &&
               activeTool !== 'extensions' &&
               activeTool !== 'browser' && (
                 <div

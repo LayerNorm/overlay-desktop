@@ -1,19 +1,14 @@
-import { OVERLAY_LOGO_SRC } from '@overlay/chat-core'
+import { Orb } from '@overlay/ui'
 import React from 'react'
-import { useChatReactConfig } from '../../context/chat-react-config'
 
 export function ToolLineLogo() {
-  const { toolLogoUrl } = useChatReactConfig()
   return (
-    // Platform-neutral shared code cannot use Next.js Image in Electron.
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={toolLogoUrl ?? OVERLAY_LOGO_SRC}
-      alt=""
-      width={8}
-      height={8}
-      className="mt-[5px] size-2 shrink-0 select-none"
-      draggable={false}
+    <Orb
+      variant="metal"
+      size={8}
+      animated={false}
+      label=""
+      className="mt-[5px] select-none"
     />
   )
 }
@@ -32,7 +27,7 @@ export function ToolLogoColumn({
     <div className="relative flex w-2 shrink-0 flex-col items-center self-stretch">
       {showLine && (
         <div
-          className="absolute left-1/2 z-0 w-px -translate-x-1/2 bg-[var(--surface-subtle)]"
+          className="absolute left-1/2 z-0 w-px -translate-x-1/2 bg-(--surface-subtle)"
           aria-hidden
           style={
             connectTop && connectBottom
@@ -43,7 +38,7 @@ export function ToolLogoColumn({
           }
         />
       )}
-      <div className="relative z-[1] shrink-0 rounded-full bg-[var(--background)]">
+      <div className="relative z-1 shrink-0 rounded-full bg-(--background)">
         <ToolLineLogo />
       </div>
       <div className="min-h-0 flex-1" />

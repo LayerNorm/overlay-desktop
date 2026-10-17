@@ -1,7 +1,10 @@
+import type { ScopedResourceFields } from './resource-scope'
 import type { MutationSuccessResponse, PaginationQueryContract } from './common'
 
-export interface NoteDoc {
+export interface NoteDoc extends ScopedResourceFields {
   _id: string
+  /** The creator; only they can move it between scopes. */
+  userId?: string
   title: string
   content: string
   tags: string[]
@@ -9,23 +12,25 @@ export interface NoteDoc {
   updatedAt: number
   deletedAt?: number
   clientId?: string
-  projectId?: string
 }
 
 export interface NoteQueryContract extends PaginationQueryContract {
   noteId?: string
-  projectId?: string | null
   includeDeleted?: boolean
+  /** Personal, workspace, or archived. Omitted means everything active the caller can see. */
+  view?: 'personal' | 'workspace' | 'archived'
 }
 
 export interface CreateNoteRequest {
   title?: string
   content?: string
   tags?: string[]
-  projectId?: string
   clientId?: string
   accessToken?: string
   userId?: string
+  workspaceId?: string
+  /** Defaults to personal. */
+  scope?: 'personal' | 'workspace'
 }
 
 export interface CreateNoteResponse {
@@ -39,10 +44,10 @@ export interface UpdateNoteRequest {
   title?: string
   content?: string
   tags?: string[]
-  projectId?: string | null
   expectedUpdatedAt?: number
   accessToken?: string
   userId?: string
+  workspaceId?: string
 }
 
 export interface UpdateNoteResponse {
@@ -74,7 +79,6 @@ export interface NotebookAgentRequest {
   message: string
   modelId?: string
   mode?: 'ask' | 'write'
-  projectId?: string
   mentions?: NotebookAgentMention[]
   accessToken?: string
   userId?: string

@@ -1,4 +1,5 @@
 export { createOverlayAppClient, type OverlayAppClient } from './create-overlay-app-client'
+export { ApiRequestError } from './shared/http'
 
 export type {
   CreateOverlayAppClientOptions,
@@ -11,31 +12,53 @@ export type {
 } from './shared/types'
 export type {
   ActConversationRequest,
+  AgentRunResource,
+  AgentRunMetricsReport,
+  AgentRunNumericObservation,
+  AgentRunRateObservation,
   ConversationGetResponse,
   ConversationMessageRequest,
   ConversationQuery,
   CreateConversationRequest,
   CreateConversationResponse,
-  StreamAuthRequest,
-  StreamAuthResponse,
   UpdateConversationRequest,
 } from './chat/types'
 export type { FileQuery } from './files/types'
 export type { NoteFileQuery, NoteQuery } from './notes/types'
-export type { ProjectQuery } from './projects/types'
 export type { AutomationQuery } from './automations/types'
 export type { IntegrationQuery } from './integrations/types'
 export type { SkillQuery } from './skills/types'
+export type { WorkQuery } from './work/types'
 export type { McpServerQuery } from './mcp-servers/types'
 export type { MemoryQuery } from './memory/types'
 export type { OutputQuery } from './outputs/types'
 export type { OverlayServerDiscovery } from './discovery/types'
-
 export { ConversationsClient } from './chat/conversations-client'
+export {
+  AgentEnvironmentsClient,
+  type AgentEnvironmentResource,
+} from './agent-environments/client'
+export {
+  CloudAgentsClient,
+  type CloudAgentStatusResource,
+  type CloudAgentPhaseResource,
+  type CloudAgentStateResource,
+} from './cloud-agents/client'
+export {
+  AgentProfilesClient,
+  type AgentProfileResource,
+  type AgentProfileStateResource,
+  type AgentProfileImportCodeResource,
+  type AgentProfileSummaryResource,
+  type AgentProfileHarnessResource,
+} from './agent-profiles/client'
+export { ComputersClient, type ComputerDesktopTicket } from './computers/client'
+export { McpAccessClient, type McpConnectionResource, type McpAccessLevelResource } from './mcp-access/client'
+export { ProviderAccountsClient, type ProviderAccountResource } from './provider-accounts/client'
+export { SurfacesClient } from './surfaces/client'
 export { ChatAuxClient } from './chat/chat-aux-client'
 export { FilesClient } from './files/client'
 export { NotesClient } from './notes/client'
-export { ProjectsClient } from './projects/client'
 export { AutomationsClient } from './automations/client'
 export { AccountClient } from './auth/account-client'
 export { BillingClient } from './auth/billing-client'
@@ -47,6 +70,8 @@ export { MemoryClient } from './memory/client'
 export { OutputsClient } from './outputs/client'
 export { IntegrationsClient } from './integrations/client'
 export { SkillsClient } from './skills/client'
+export { ScopeClient } from './scope/client'
+export { WorkClient } from './work/client'
 export { McpServersClient } from './mcp-servers/client'
 export { SettingsClient } from './settings/client'
 export { OnboardingClient } from './onboarding/client'

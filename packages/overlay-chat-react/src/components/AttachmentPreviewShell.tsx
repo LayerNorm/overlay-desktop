@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { Maximize2, PanelRightOpen, X } from 'lucide-react'
-import { cn, usePresence } from '@overlay/ui'
+import { cn, Dialog, DialogContent } from '@overlay/ui'
 
 export type AttachmentPreviewMode = 'panel' | 'dialog'
 
@@ -38,7 +38,7 @@ function AttachmentPreviewHeaderActions({
       <button
         type="button"
         onClick={() => onModeChange(nextMode)}
-        className="rounded-md p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]"
+        className="rounded-md p-1.5 text-(--muted) transition-colors hover:bg-(--surface-subtle) hover:text-(--foreground)"
         aria-label={label}
         title={label}
       >
@@ -47,7 +47,7 @@ function AttachmentPreviewHeaderActions({
       <button
         type="button"
         onClick={onClose}
-        className="rounded-md p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]"
+        className="rounded-md p-1.5 text-(--muted) transition-colors hover:bg-(--surface-subtle) hover:text-(--foreground)"
         aria-label="Close attachment preview"
         title="Close"
       >
@@ -93,30 +93,19 @@ export function AttachmentPreviewDialog({
   onModeChange: (mode: AttachmentPreviewMode) => void
   renderViewer: (props: AttachmentViewerRenderProps) => ReactNode
 }) {
-  const { mounted, visible } = usePresence(open, 300)
   // Keep the last preview while the exit animation plays (same pattern as DraftReviewModal).
   const [cachedPreview, setCachedPreview] = useState(preview)
   if (preview && preview !== cachedPreview) setCachedPreview(preview)
   const activePreview = preview ?? cachedPreview
-  if (!mounted || !activePreview) return null
+  if (!activePreview) return null
 
   return (
-    <div
-      className={cn(
-        'fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-scrim)] p-4 transition-opacity duration-300 ease-[var(--overlay-ease)]',
-        visible ? 'opacity-100' : 'opacity-0',
-      )}
-      onClick={(event) => { if (event.target === event.currentTarget) onClose() }}
-    >
-      <div
-        role="dialog"
+    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose() }}>
+      <DialogContent
+        showCloseButton={false}
+        overlayClassName="z-50 bg-(--overlay-scrim) p-4"
         aria-label="Attachment preview"
-        aria-modal="true"
-        className={cn(
-          'flex h-[min(92vh,900px)] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] shadow-xl transition-[opacity,transform] duration-300 ease-[var(--overlay-ease)]',
-          visible ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-1 opacity-0',
-        )}
-        onClick={(event) => event.stopPropagation()}
+        className={cn('flex h-[min(92vh,900px)] w-[calc(100%-2rem)] max-w-5xl gap-0 flex-col overflow-hidden p-0')}
       >
         <div className="flex min-h-0 flex-1 flex-col">
           {renderViewer({
@@ -130,7 +119,7 @@ export function AttachmentPreviewDialog({
             ),
           })}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

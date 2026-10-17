@@ -13,10 +13,12 @@ export function UserMessageBubble({
   children,
   className,
   contentClassName,
+  tone = 'default',
 }: {
   children: ReactNode
   className?: string
   contentClassName?: string
+  tone?: 'default' | 'room-self'
 }) {
   const contentRef = useRef<HTMLDivElement>(null)
   const [expanded, setExpanded] = useState(false)
@@ -53,7 +55,10 @@ export function UserMessageBubble({
   return (
     <div
       className={cx(
-        'chat-user-bubble min-w-0 break-words select-text rounded-2xl rounded-br-sm border border-[var(--border)] bg-[var(--surface-subtle)] px-3 py-2.5 text-sm leading-relaxed text-[var(--foreground)] sm:px-4',
+        'chat-user-bubble min-w-0 wrap-break-word select-text rounded-2xl border px-3 py-2.5 text-sm leading-relaxed sm:px-4',
+        tone === 'room-self'
+          ? 'room-message-self-bubble rounded-br-sm border-transparent bg-(--room-message-self-bg) text-(--room-message-self-text)'
+          : 'rounded-br-sm border-(--border) bg-(--surface-subtle) text-(--foreground)',
         className,
       )}
     >
@@ -70,14 +75,17 @@ export function UserMessageBubble({
           {children}
         </div>
         {clamped ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-b from-transparent to-[var(--surface-subtle)]" />
+          <div className={cx(
+            'pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-linear-to-b from-transparent',
+            tone === 'room-self' ? 'to-(--room-message-self-bg)' : 'to-(--surface-subtle)',
+          )} />
         ) : null}
       </div>
       {collapsible ? (
         <button
           type="button"
           onClick={() => setExpanded((open) => !open)}
-          className="ml-auto mt-1 flex h-6 w-6 items-center justify-center rounded-md text-[var(--muted)] transition-colors hover:bg-[var(--border)] hover:text-[var(--foreground)]"
+          className="ml-auto mt-1 flex h-6 w-6 items-center justify-center rounded-md text-(--muted) transition-colors hover:bg-(--border) hover:text-(--foreground)"
           aria-label={expanded ? 'Collapse message' : 'Expand message'}
           title={expanded ? 'Collapse message' : 'Expand message'}
         >

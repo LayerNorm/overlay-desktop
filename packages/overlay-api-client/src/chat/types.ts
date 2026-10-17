@@ -2,13 +2,16 @@ import type { ConversationMessage, ConversationSummary } from '@overlay/app-core
 import type { PaginationQuery } from '../shared/types'
 
 export interface ConversationQuery extends PaginationQuery {
+  view?: 'personal' | 'dms' | 'channels' | 'all'
   conversationId?: string
   messages?: boolean
-  projectId?: string
   updatedSince?: number
   includeDeleted?: boolean
   limit?: number
   beforeCreatedAt?: number
+  mainOnly?: boolean
+  threadRootMessageId?: string
+  messageId?: string
   compactToolPayloads?: boolean
 }
 
@@ -23,8 +26,8 @@ export type ConversationGetResponse =
     }
 
 export interface CreateConversationRequest {
+  conversationType?: 'personal' | 'dm' | 'channel'
   title?: string
-  projectId?: string
   askModelIds?: string[]
   actModelId?: string
   lastMode?: 'ask' | 'act'
@@ -40,7 +43,6 @@ export interface CreateConversationResponse {
 export interface UpdateConversationRequest {
   conversationId?: string
   title?: string
-  projectId?: string | null
   lastMode?: 'ask' | 'act'
   askModelIds?: string[]
   actModelId?: string
@@ -63,21 +65,99 @@ export interface ConversationMessageRequest {
   replySnippet?: string
   accessToken?: string
   userId?: string
+  clientNonce?: string
+  threadRootMessageId?: string
+  mentionedPrincipalIds?: string[]
+  memoryEnabled?: boolean
 }
 
 export type ActConversationRequest = Record<string, unknown>
 
-export interface StreamAuthRequest {
-  conversationId?: string
-  accessToken?: string
-  userId?: string
-  [key: string]: unknown
+export type AgentRunResource = {
+  id: string
+  conversationId: string
+  turnId: string
+  userId: string
+  userMessageId: string
+  assistantMessageId: string
+  mode: 'chat' | 'work'
+  runner: 'tool_loop' | 'workflow'
+  status: 'queued' | 'running' | 'waiting_for_approval' | 'completed' | 'failed' | 'cancelled'
+  variantIndex?: number
+  workflowRunId?: string
+  leaseExpiresAt?: number
+  startedAt?: number
+  completedAt?: number
+  failedAt?: number
+  cancelledAt?: number
+  terminalError?: { code: string; message: string; retryable: boolean }
+  approval?: {
+    token: string
+    requestedAt: number
+    title?: string
+    requests: Array<{
+      approvalId: string
+      toolCallId: string
+      toolName: string
+      input: unknown
+    }>
+  }
+  metrics?: {
+    firstTokenAt?: number
+    inputTokens?: number
+    outputTokens?: number
+    providerCostMicros?: number
+    workflowStepCount?: number
+    workflowRetryCount?: number
+    workflowObservedStorageBytes?: number
+    toolCallCount?: number
+    toolSuccessCount?: number
+    toolFailureCount?: number
+    toolRetryCount?: number
+    browserDisconnectedAt?: number
+    browserReconnectedAt?: number
+    processFailureDetectedAt?: number
+    processFailureRecoveredAt?: number
+    cancellationRequestedAt?: number
+    cancellationAcknowledgedAt?: number
+    staleDetectedAt?: number
+  }
+  createdAt: number
+  updatedAt: number
 }
 
-export interface StreamAuthResponse {
-  token?: string
-  streamToken?: string
-  expiresAt?: number
-  expiresIn?: number
-  [key: string]: unknown
+export type AgentRunNumericObservation = {
+  samples: number
+  mean: number | null
+  p50: number | null
+  p95: number | null
+}
+
+export type AgentRunRateObservation = {
+  samples: number
+  successes: number
+  rate: number | null
+}
+
+export type AgentRunMetricsReport = {
+  generatedAt: number
+  truncated: boolean
+  window: { from: number; to: number }
+  runners: Record<'tool_loop' | 'workflow', {
+    runs: number
+    firstTokenLatencyMs: AgentRunNumericObservation
+    totalCompletionLatencyMs: AgentRunNumericObservation
+    providerCostMicrosPerTurn: AgentRunNumericObservation
+    workflowStepCount: AgentRunNumericObservation
+    workflowRetryCount: AgentRunNumericObservation
+    workflowObservedStorageBytes: AgentRunNumericObservation
+    workflowInfrastructureCostMicros: AgentRunNumericObservation
+    browserDisconnectCompletion: AgentRunRateObservation
+    processFailureRecovery: AgentRunRateObservation
+    toolSuccess: AgentRunRateObservation
+    toolRetry: AgentRunRateObservation
+    cancellationLatencyMs: AgentRunNumericObservation
+    staleRunFrequency: AgentRunRateObservation
+  }>
+  caveats: string[]
 }

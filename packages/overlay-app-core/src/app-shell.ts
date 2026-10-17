@@ -32,7 +32,7 @@ export const DEFAULT_OVERLAY_BRAND_CONFIG: OverlayBrandConfig = {
   shortName: 'overlay',
   logoSrc: '/assets/overlay-logo.png',
   logoAlt: '',
-  homeHref: '/app/chat',
+  homeHref: '/app/work',
   supportEmail: 'divyansh@layernorm.co',
   organizationName: 'Overlay',
 }
@@ -49,12 +49,6 @@ export const DEFAULT_OVERLAY_FEATURE_FLAGS: readonly OverlayFeatureFlag[] = [
     enabled: true,
   },
   {
-    id: 'projects',
-    label: 'Projects',
-    enabled: true,
-    requiredCapabilities: ['projects'],
-  },
-  {
     id: 'automations',
     label: 'Automations',
     enabled: true,
@@ -66,11 +60,63 @@ export const DEFAULT_OVERLAY_FEATURE_FLAGS: readonly OverlayFeatureFlag[] = [
     enabled: true,
     requiredAnyCapabilities: ['integrations', 'skills', 'mcpServers'],
   },
+  {
+    id: 'workspaces',
+    label: 'Workspaces',
+    description: 'Workspace isolation, membership, invitations, teams, and active-workspace routing.',
+    enabled: false,
+  },
+  {
+    id: 'collaborativeChats',
+    label: 'Collaborative chats',
+    description: 'Principal-addressed direct messages, group direct messages, and multiplayer read state.',
+    enabled: false,
+  },
+  {
+    id: 'channels',
+    label: 'Channels',
+    description: 'Named workspace rooms, membership, discovery, and reply threads.',
+    enabled: false,
+  },
+  {
+    id: 'agents',
+    label: 'Agents',
+    description: 'Workspace-owned reusable agents that participate as named principals.',
+    enabled: false,
+  },
+  {
+    id: 'resourceSharing',
+    label: 'Resource sharing',
+    description: 'Unified sharing with people, agents, teams, rooms, and resource guests.',
+    enabled: false,
+  },
 ] as const
 
 export const DEFAULT_OVERLAY_NAVIGATION: readonly OverlayNavigationItem[] = [
-  { id: 'chat', href: '/app/chat', label: 'Chat', icon: 'message-square', requiredCapabilities: ['chat'] },
-  { id: 'files', href: '/app/files', label: 'Files', icon: 'file-text', requiredCapabilities: ['files', 'knowledge'] },
+  {
+    id: 'work',
+    href: '/app/work',
+    label: 'Work',
+    icon: 'list-checks',
+    requiredCapabilities: ['work'],
+    subviews: ['list', 'board', 'timeline'],
+  },
+  {
+    id: 'agents',
+    href: '/app/agents',
+    label: 'Agents',
+    icon: 'bot',
+    featureFlagId: 'agents',
+  },
+  {
+    id: 'chat',
+    href: '/app/chat',
+    label: 'Chats',
+    icon: 'message-square',
+    requiredCapabilities: ['chat'],
+    subviews: ['personal', 'dms', 'channels', 'activity', 'all'],
+  },
+  { id: 'files', href: '/app/files', label: 'Files', icon: 'file-text', requiredCapabilities: ['files'] },
   {
     id: 'extensions',
     href: '/app/tools',
@@ -79,14 +125,6 @@ export const DEFAULT_OVERLAY_NAVIGATION: readonly OverlayNavigationItem[] = [
     featureFlagId: 'extensions',
     requiredAnyCapabilities: ['integrations', 'skills', 'mcpServers'],
     subviews: ['connectors', 'skills', 'mcps', 'apps', 'all'],
-  },
-  {
-    id: 'projects',
-    href: '/app/projects',
-    label: 'Projects',
-    icon: 'folder-open',
-    featureFlagId: 'projects',
-    requiredCapabilities: ['projects'],
   },
   {
     id: 'automations',
@@ -101,10 +139,18 @@ export const DEFAULT_OVERLAY_NAVIGATION: readonly OverlayNavigationItem[] = [
 export const DEFAULT_OVERLAY_SETTINGS_SECTIONS: readonly OverlaySettingsSection[] = [
   { id: 'general', label: 'General' },
   { id: 'account', label: 'Account' },
+  { id: 'workspace', label: 'Workspace' },
   { id: 'customization', label: 'Customization' },
-  { id: 'memories', label: 'Memories', featureFlagId: 'knowledge', requiredCapabilities: ['memory', 'vectorSearch'] },
+  { id: 'shortcuts', label: 'Shortcuts' },
+  { id: 'memories', label: 'Memories', featureFlagId: 'knowledge', requiredCapabilities: ['memory'] },
+  { id: 'providers', label: 'Providers', requiredCapabilities: ['modelRouting'] },
   { id: 'models', label: 'Models', requiredCapabilities: ['modelRouting'] },
   { id: 'webhooks', label: 'Webhooks', requiredCapabilities: ['webhooks'] },
+  { id: 'agent-environments', label: 'Environments', featureFlagId: 'agents', requiredCapabilities: ['connectedAgents'] },
+  { id: 'agent-accounts', label: 'Agents', featureFlagId: 'agents', requiredCapabilities: ['connectedAgents'] },
+  { id: 'connected-apps', label: 'Connected apps' },
+  { id: 'computers', label: 'Computers', requiredCapabilities: ['computers'] },
+  { id: 'archived', label: 'Archived' },
   { id: 'contact', label: 'Contact' },
 ] as const
 
@@ -114,7 +160,7 @@ export const DEFAULT_OVERLAY_FEATURE_MODULES: readonly OverlayFeatureModule[] = 
     label: 'Files and knowledge',
     description: 'Files, memories, generated outputs, and knowledge search surfaces.',
     navigationItemId: 'files',
-    routePatterns: ['/app/files', '/app/knowledge', '/app/memories', '/app/outputs'],
+    routePatterns: ['/app/files', '/app/memories', '/app/outputs'],
     componentKey: 'overlay.modules.filesKnowledge',
     packageName: '@overlay/modules-react',
     featureFlagId: 'knowledge',
@@ -130,18 +176,6 @@ export const DEFAULT_OVERLAY_FEATURE_MODULES: readonly OverlayFeatureModule[] = 
     componentKey: 'overlay.modules.notes',
     packageName: '@overlay/modules-react',
     order: 20,
-  },
-  {
-    id: 'projects',
-    label: 'Projects',
-    description: 'Project hierarchy and scoped workspace resources.',
-    navigationItemId: 'projects',
-    routePatterns: ['/app/projects'],
-    componentKey: 'overlay.modules.projects',
-    packageName: '@overlay/modules-react',
-    featureFlagId: 'projects',
-    requiredCapabilities: ['projects'],
-    order: 30,
   },
   {
     id: 'tools-extensions',
@@ -192,18 +226,6 @@ export const DEFAULT_OVERLAY_SIDEBAR_ACTIONS: readonly OverlaySidebarAction[] = 
     order: 20,
   },
   {
-    id: 'projects.create',
-    label: 'New project',
-    actionKey: 'projects.create',
-    navigationItemId: 'projects',
-    featureModuleId: 'projects',
-    routePatterns: ['/app/projects'],
-    requiresAuth: true,
-    featureFlagId: 'projects',
-    requiredCapabilities: ['projects'],
-    order: 30,
-  },
-  {
     id: 'automations.create',
     label: 'New automation',
     actionKey: 'automations.create',
@@ -220,9 +242,15 @@ export const DEFAULT_OVERLAY_SETTINGS_PANELS: readonly OverlaySettingsPanel[] = 
   { id: 'general', sectionId: 'general', label: 'General', componentKey: 'overlay.settings.general', order: 10 },
   { id: 'account', sectionId: 'account', label: 'Account', componentKey: 'overlay.settings.account', order: 20 },
   { id: 'customization', sectionId: 'customization', label: 'Customization', componentKey: 'overlay.settings.customization', order: 30 },
-  { id: 'memories', sectionId: 'memories', label: 'Memories', componentKey: 'overlay.settings.memories', featureFlagId: 'knowledge', requiredCapabilities: ['memory', 'vectorSearch'], order: 40 },
+  { id: 'shortcuts', sectionId: 'shortcuts', label: 'Shortcuts', componentKey: 'overlay.settings.shortcuts', order: 35 },
+  { id: 'memories', sectionId: 'memories', label: 'Memories', componentKey: 'overlay.settings.memories', featureFlagId: 'knowledge', requiredCapabilities: ['memory'], order: 40 },
   { id: 'models', sectionId: 'models', label: 'Models', componentKey: 'overlay.settings.models', requiredCapabilities: ['modelRouting'], order: 50 },
   { id: 'webhooks', sectionId: 'webhooks', label: 'Webhooks', componentKey: 'overlay.settings.webhooks', requiredCapabilities: ['webhooks'], order: 60 },
+  { id: 'agent-environments', sectionId: 'agent-environments', label: 'Environments', componentKey: 'overlay.settings.agentEnvironments', featureFlagId: 'agents', requiredCapabilities: ['connectedAgents'], order: 65 },
+  { id: 'agent-accounts', sectionId: 'agent-accounts', label: 'Agents', componentKey: 'overlay.settings.agentAccounts', featureFlagId: 'agents', requiredCapabilities: ['connectedAgents'], order: 66 },
+  { id: 'connected-apps', sectionId: 'connected-apps', label: 'Connected apps', componentKey: 'overlay.settings.connectedApps', order: 66.5 },
+  { id: 'computers', sectionId: 'computers', label: 'Computers', componentKey: 'overlay.settings.computers', requiredCapabilities: ['computers'], order: 67 },
+  { id: 'archived', sectionId: 'archived', label: 'Archived', componentKey: 'overlay.settings.archived', order: 68 },
   { id: 'contact', sectionId: 'contact', label: 'Contact', componentKey: 'overlay.settings.contact', order: 70 },
 ] as const
 
@@ -317,7 +345,6 @@ export const DEFAULT_OVERLAY_APP_CONFIG: OverlayAppConfig = {
 const FEATURE_FLAG_TO_APP_FLAG: Partial<Record<OverlayFeatureFlagId, keyof AppFeatureFlags>> = {
   voiceTranscription: 'canUseVoiceTranscription',
   knowledge: 'canUseKnowledge',
-  projects: 'canUseProjects',
   automations: 'canUseAutomations',
   extensions: 'canUseExtensions',
 }
@@ -332,7 +359,6 @@ export function overlayFeatureFlagsToAppFeatureFlags(
   const next: AppFeatureFlags = {
     canUseVoiceTranscription: true,
     canUseKnowledge: true,
-    canUseProjects: true,
     canUseAutomations: true,
     canUseExtensions: true,
   }
@@ -516,7 +542,7 @@ export function overlayNavigationToDestinations(
     href: '/app/settings',
     subviews: settingsSections.map((section) => section.id),
   })
-  destinations.push({ id: 'account', label: 'Account', href: '/account' })
+  destinations.push({ id: 'account', label: 'Account settings', href: '/app/settings?section=account' })
 
   return destinations
 }

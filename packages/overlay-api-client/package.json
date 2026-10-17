@@ -6,15 +6,11 @@
   "sideEffects": false,
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "files": ["src", "README.md", "LICENSE", "tsconfig.json"],
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
-  },
   "exports": {
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@overlay/workspace-contracts": "0.0.1",
     "zod": "^3.25.76"
   },
   "peerDependencies": {
@@ -28,5 +24,15 @@
     "@overlay/app-core": "0.0.1",
     "tsx": "^4.8.1",
     "typescript": "^5"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE",
+    "tsconfig.json"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

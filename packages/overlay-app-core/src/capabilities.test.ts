@@ -22,17 +22,14 @@ test('resolveOverlayAppShellConfig hides capability-gated registries', () => {
   const shell = resolveOverlayAppShellConfig(undefined, {
     capabilities: {
       automations: false,
-      projects: false,
       vectorSearch: false,
+      memory: false,
     },
   })
 
   assert.equal(shell.capabilities.automations, false)
-  assert.equal(shell.capabilities.projects, false)
   assert.equal(shell.navigation.some((item) => item.id === 'automations'), false)
-  assert.equal(shell.navigation.some((item) => item.id === 'projects'), false)
   assert.equal(shell.sidebarActions.some((item) => item.actionKey === 'automations.create'), false)
-  assert.equal(shell.sidebarActions.some((item) => item.actionKey === 'projects.create'), false)
   assert.equal(shell.tools.some((item) => item.id === 'automation-runner'), false)
   assert.equal(shell.tools.some((item) => item.id === 'knowledge-search'), false)
   assert.equal(shell.settingsSections.some((item) => item.id === 'memories'), false)
@@ -41,7 +38,6 @@ test('resolveOverlayAppShellConfig hides capability-gated registries', () => {
   assert.equal(shell.settingsPanels.some((item) => item.id === 'webhooks'), false)
   assert.equal(shell.navigation.some((item) => item.id === 'files'), true)
   assert.equal(shell.appFeatureFlags.canUseAutomations, false)
-  assert.equal(shell.appFeatureFlags.canUseProjects, false)
   assert.equal(shell.appFeatureFlags.canUseKnowledge, true)
 })
 
@@ -52,6 +48,47 @@ test('resolveOverlayAppShellConfig exposes webhook settings when enabled', () =>
 
   assert.equal(shell.settingsSections.some((item) => item.id === 'webhooks'), true)
   assert.equal(shell.settingsPanels.some((item) => item.id === 'webhooks'), true)
+})
+
+test('connected-agent settings require both the product flag and server capability', () => {
+  const hidden = resolveOverlayAppShellConfig({
+    featureFlags: [{ id: 'agents', label: 'Agents', enabled: true }],
+  })
+  assert.equal(hidden.settingsSections.some((item) => item.id === 'agent-environments'), false)
+
+  const visible = resolveOverlayAppShellConfig({
+    featureFlags: [{ id: 'agents', label: 'Agents', enabled: true }],
+  }, { capabilities: { connectedAgents: true } })
+  assert.equal(visible.settingsSections.some((item) => item.id === 'agent-environments'), true)
+  assert.equal(visible.settingsPanels.some((item) => item.id === 'agent-environments'), true)
+})
+
+test('computers settings follow the computers capability', () => {
+  const hidden = resolveOverlayAppShellConfig()
+  assert.equal(hidden.settingsSections.some((item) => item.id === 'computers'), false)
+  assert.equal(hidden.settingsPanels.some((item) => item.id === 'computers'), false)
+
+  const visible = resolveOverlayAppShellConfig(undefined, { capabilities: { computers: true } })
+  assert.equal(visible.settingsSections.some((item) => item.id === 'computers'), true)
+  assert.equal(visible.settingsPanels.some((item) => item.id === 'computers'), true)
+})
+
+test('resolveOverlayAppShellConfig exposes memory management without vector search', () => {
+  const shell = resolveOverlayAppShellConfig(undefined, {
+    capabilities: { memory: true, vectorSearch: false },
+  })
+
+  assert.equal(shell.settingsSections.some((item) => item.id === 'memories'), true)
+  assert.equal(shell.settingsPanels.some((item) => item.id === 'memories'), true)
+  assert.equal(shell.tools.some((item) => item.id === 'knowledge-search'), false)
+})
+
+test('resolveOverlayAppShellConfig exposes files without requiring knowledge services', () => {
+  const shell = resolveOverlayAppShellConfig(undefined, {
+    capabilities: { files: true, knowledge: false },
+  })
+
+  assert.equal(shell.navigation.some((item) => item.id === 'files'), true)
 })
 
 test('redacted capability bootstrap payload exposes capabilities without secrets', () => {
@@ -81,12 +118,11 @@ test('redacted capability bootstrap payload exposes capabilities without secrets
     featureFlags: {
       canUseVoiceTranscription: true,
       canUseKnowledge: true,
-      canUseProjects: true,
       canUseAutomations: false,
       canUseExtensions: true,
     },
-    navigation: ['chat', 'files', 'extensions', 'projects'],
-    settingsSections: ['general', 'account', 'customization', 'models', 'contact'],
+    navigation: ['chat', 'files', 'extensions'],
+    settingsSections: ['general', 'account', 'workspace', 'customization', 'shortcuts', 'memories', 'providers', 'models', 'connected-apps', 'archived', 'contact'],
   })
   assert.equal(JSON.stringify(payload).includes('secret'), false)
 })

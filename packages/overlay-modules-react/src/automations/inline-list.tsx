@@ -1,6 +1,6 @@
 'use client'
 
-import type { MouseEvent } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import { Loader2, Pencil, Trash2, Workflow } from 'lucide-react'
 import type { AutomationSummary } from '@overlay/app-core'
 import {
@@ -30,6 +30,8 @@ export interface AutomationsInlineListProps {
   onRequestDelete: (automation: AutomationSummary, event: React.MouseEvent) => void
   onConfirmDelete: (automation: AutomationSummary, event: React.MouseEvent) => void
   onClearPendingDelete: () => void
+  /** Extra hover controls for a row (the web app adds Move and Archive, which depend on who is viewing). */
+  renderRowActions?: (automation: AutomationSummary) => ReactNode
 }
 
 export function AutomationsInlineList({
@@ -49,10 +51,12 @@ export function AutomationsInlineList({
   onRequestDelete,
   onConfirmDelete,
   onClearPendingDelete,
+  renderRowActions,
 }: AutomationsInlineListProps) {
   if (automations.length === 0) {
-    return <p className="px-2.5 py-2 text-xs text-[var(--muted-light)]">No automations yet</p>
+    return <p className="px-2.5 py-2 text-xs text-(--muted-light)">No automations yet</p>
   }
+  const deletingAutomationIdSet = new Set(deletingAutomationIds)
 
   return (
     <div className="space-y-0.5">
@@ -62,12 +66,12 @@ export function AutomationsInlineList({
           ? 'text-red-500'
           : status.tone === 'enabled'
             ? 'text-green-500'
-            : 'text-[var(--muted-light)]'
+            : 'text-(--muted-light)'
         const conversationId = getAutomationConversationId(automation)
         const automationLabel = getAutomationDisplayName(automation)
         const isActive = activeAutomationId === automation._id || activeId === automation._id || activeId === conversationId
         const isEditing = editingAutomationId === automation._id
-        const isDeleting = deletingAutomationIds.includes(automation._id)
+        const isDeleting = deletingAutomationIdSet.has(automation._id)
         const isConfirmingDelete = pendingDeleteAutomationId === automation._id
         const href = automationHref(automation)
         return (
@@ -79,27 +83,20 @@ export function AutomationsInlineList({
             }}
             className={`group/automation-row flex h-7 w-full items-center gap-1 rounded-md px-2 py-0 text-xs transition-colors ${
               isActive
-                ? 'bg-[var(--surface-subtle)] text-[var(--foreground)]'
-                : 'text-[var(--muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]'
+                ? 'bg-(--surface-subtle) text-(--foreground)'
+                : 'text-(--muted) hover:bg-(--surface-subtle) hover:text-(--foreground)'
             }`}
           >
-            <button
-              type="button"
-              disabled={isDeleting || pendingNavId === automation._id}
-              onClick={() => {
-                if (isEditing) return
-                onNavigateAutomation(automation, href)
-              }}
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-sm px-0.5 text-left disabled:cursor-default disabled:opacity-50"
-            >
-              {pendingNavId === automation._id ? (
-                <Loader2 size={13} strokeWidth={1.75} className="shrink-0 animate-spin text-[var(--muted)]" />
-              ) : (
-                <Workflow size={13} strokeWidth={1.75} className={`shrink-0 ${iconColor}`} />
-              )}
-              {isEditing ? (
+            {isEditing ? (
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xs px-0.5">
+                {pendingNavId === automation._id ? (
+                  <Loader2 size={13} strokeWidth={1.75} className="shrink-0 animate-spin text-(--muted)" />
+                ) : (
+                  <Workflow size={13} strokeWidth={1.75} className={`shrink-0 ${iconColor}`} />
+                )}
                 <input
-                  autoFocus
+                  aria-label="Automation name"
+                  ref={(el) => { el?.focus() }}
                   value={editingAutomationName}
                   onChange={(event) => onEditingNameChange(event.target.value)}
                   onClick={(event) => event.stopPropagation()}
@@ -113,12 +110,24 @@ export function AutomationsInlineList({
                     }
                   }}
                   onBlur={() => onCommitRename(automation)}
-                  className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] px-2 py-1 text-[11px] text-[var(--foreground)] outline-none"
+                  className="min-w-0 flex-1 rounded-md border border-(--border) bg-(--surface-elevated) px-2 py-1 text-[11px] text-(--foreground) outline-hidden"
                 />
-              ) : (
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={isDeleting || pendingNavId === automation._id}
+                onClick={() => onNavigateAutomation(automation, href)}
+                className="flex min-w-0 flex-1 items-center gap-2 rounded-xs px-0.5 text-left disabled:cursor-default disabled:opacity-50"
+              >
+                {pendingNavId === automation._id ? (
+                  <Loader2 size={13} strokeWidth={1.75} className="shrink-0 animate-spin text-(--muted)" />
+                ) : (
+                  <Workflow size={13} strokeWidth={1.75} className={`shrink-0 ${iconColor}`} />
+                )}
                 <span className="flex-1 truncate text-left">{automationLabel}</span>
-              )}
-            </button>
+              </button>
+            )}
             {!isEditing ? (
               <>
                 {isConfirmingDelete ? (
@@ -133,11 +142,16 @@ export function AutomationsInlineList({
                   </button>
                 ) : (
                   <>
+                    {renderRowActions ? (
+                      <span className="flex shrink-0 items-center opacity-0 transition-opacity group-hover/automation-row:opacity-100 group-focus-within/automation-row:opacity-100">
+                        {renderRowActions(automation)}
+                      </span>
+                    ) : null}
                     <button
                       type="button"
                       onClick={(event) => onBeginRename(automation, event)}
                       disabled={isDeleting}
-                      className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-[var(--border)] disabled:opacity-30 group-hover/automation-row:opacity-100 focus-visible:opacity-100"
+                      className="shrink-0 rounded-sm p-0.5 opacity-0 transition-opacity hover:bg-(--border) disabled:opacity-30 group-hover/automation-row:opacity-100 focus-visible:opacity-100"
                       aria-label="Rename automation"
                     >
                       <Pencil size={11} />
@@ -146,7 +160,7 @@ export function AutomationsInlineList({
                       type="button"
                       onClick={(event) => onRequestDelete(automation, event)}
                       disabled={isDeleting}
-                      className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-[var(--border)] hover:text-red-500 disabled:opacity-30 group-hover/automation-row:opacity-100 focus-visible:opacity-100"
+                      className="shrink-0 rounded-sm p-0.5 opacity-0 transition-opacity hover:bg-(--border) hover:text-red-500 disabled:opacity-30 group-hover/automation-row:opacity-100 focus-visible:opacity-100"
                       aria-label="Delete automation"
                     >
                       <Trash2 size={11} />

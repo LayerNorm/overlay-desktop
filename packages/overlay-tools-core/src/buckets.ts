@@ -1,10 +1,19 @@
-export type ToolCostBucket = 'perplexity' | 'image' | 'video' | 'browser' | 'daytona' | 'composio' | 'internal'
+export type ToolCostBucket = 'perplexity' | 'image' | 'video' | 'browser' | 'composio' | 'internal'
 
 export type ToolBucket = ToolCostBucket
 
 export const INTERNAL_TOOL_IDS = new Set<string>([
   'search_knowledge',
   'search_in_files',
+  'list_files',
+  'read_file',
+  'write_file',
+  'create_folder',
+  'move_file',
+  'search_memory',
+  'search_messages',
+  'list_chats',
+  'read_chat',
   'save_memory',
   'save_memory_batch',
   'update_memory',
@@ -12,6 +21,9 @@ export const INTERNAL_TOOL_IDS = new Set<string>([
   'list_notes',
   'get_note',
   'create_note',
+  'append_to_note',
+  'replace_note_section',
+  'edit_note',
   'update_note',
   'delete_note',
   'list_skills',
@@ -22,11 +34,21 @@ export const INTERNAL_TOOL_IDS = new Set<string>([
   'update_automation',
   'pause_automation',
   'delete_automation',
+  'list_agents',
+  'ask_agent',
+  'read_agent_reply',
+  'post_message',
 ])
 
 /** Maps tool name -> usage/cost bucket. */
 export function toolCostBucketForId(toolId: string): ToolCostBucket {
-  if (toolId === 'perplexity_search' || toolId === 'parallel_search') return 'perplexity'
+  if (
+    toolId === 'perplexity_search' ||
+    toolId === 'parallel_search' ||
+    toolId === 'web_search' ||
+    toolId === 'deep_search' ||
+    toolId === 'web_fetch'
+  ) return 'perplexity'
   if (toolId === 'generate_image') return 'image'
   if (
     toolId === 'generate_video' ||
@@ -36,7 +58,6 @@ export function toolCostBucketForId(toolId: string): ToolCostBucket {
     toolId === 'edit_video'
   ) return 'video'
   if (toolId === 'browser_run_task' || toolId === 'interactive_browser_session') return 'browser'
-  if (toolId === 'run_daytona_sandbox') return 'daytona'
   if (INTERNAL_TOOL_IDS.has(toolId)) return 'internal'
   return 'composio'
 }
@@ -48,7 +69,6 @@ export function shouldPersistToolInvocation(bucket: ToolCostBucket): boolean {
     bucket === 'image' ||
     bucket === 'video' ||
     bucket === 'browser' ||
-    bucket === 'daytona' ||
     bucket === 'composio'
   )
 }

@@ -543,7 +543,7 @@ export function AgentEditorPanel({
                   id="agent-workdir"
                   value={workingDirectory}
                   onChange={(event) => setWorkingDirectory(event.target.value)}
-                  placeholder="/Users/you/Projects/app"
+                  placeholder="~/Projects/app"
                   style={{ ...inputStyle(theme), fontFamily: 'ui-monospace, monospace' }}
                 />
                 <p style={{ margin: '6px 0 0', fontSize: '11px', color: theme.textSecondary }}>

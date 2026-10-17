@@ -8,3 +8,4 @@ export class DiscoveryClient {
     return this.http.json<OverlayServerDiscovery>('/api/v1/discovery', init)
   }
 }
+

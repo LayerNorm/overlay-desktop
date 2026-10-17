@@ -103,8 +103,8 @@ export async function fetchChatListResult(
       : overlayDesktopAppClient.conversations
           .getResponse({
             limit: INITIAL_CHAT_LIST_LIMIT,
-            ...(view === 'personal' ? {} : { view })
-          } as { limit: number; view?: string })
+            ...(view === 'personal' ? {} : { view: view as 'dms' | 'channels' | 'all' })
+          })
           .then(async (res): Promise<ChatListFetchOutcome> => {
             if (!res.ok) {
               if (res.status === 401 || res.status === 403) return { status: 'unauthenticated' }

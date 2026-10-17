@@ -1,0 +1,97 @@
+{
+  "upstream": "LayerNorm/overlay-web",
+  "sha": "b03dd51c2cef287e00c7814f7774487355d8d86e",
+  "syncedAt": "2026-10-17T01:31:54.544Z",
+  "packages": [
+    {
+      "dir": "overlay-agent-bridge-protocol",
+      "name": "@layernorm/overlay-agent-bridge-protocol",
+      "version": "0.3.11"
+    },
+    {
+      "dir": "overlay-agent-host",
+      "name": "@layernorm/overlay-agent-host",
+      "version": "0.3.11"
+    },
+    {
+      "dir": "overlay-agent-runtime",
+      "name": "@overlay/agent-runtime",
+      "version": "0.0.1"
+    },
+    {
+      "dir": "overlay-api-client",
+      "name": "@overlay/api-client",
+      "version": "0.0.1"
+    },
+    {
+      "dir": "overlay-app-core",
+      "name": "@overlay/app-core",
+      "version": "0.0.1"
+    },
+    {
+      "dir": "overlay-auth-contracts",
+      "name": "@overlay/auth-contracts",
+      "version": "0.0.1"
+    },
+    {
+      "dir": "overlay-authz-contracts",
+      "name": "@overlay/authz-contracts",
+      "version": "0.0.1"
+    },
+    {
+      "dir": "overlay-billing",
+      "name": "@overlay/billing",
+      "version": "0.0.1"
+    },
+    {
+      "dir": "overlay-chat-core",
+      "name": "@overlay/chat-core",
+      "version": "0.0.1"
+    },
+    {
+      "dir": "overlay-chat-react",
+      "name": "@overlay/chat-react",
+      "version": "0.0.1"
+    },
+    {
+      "dir": "overlay-extension-sdk",
+      "name": "@overlay/extension-sdk",
+      "version": "0.0.1"
+    },
+    {
+      "dir": "overlay-llm-gateway",
+      "name": "@overlay/llm-gateway",
+      "version": "0.0.1"
+    },
+    {
+      "dir": "overlay-modules-react",
+      "name": "@overlay/modules-react",
+      "version": "0.0.1"
+    },
+    {
+      "dir": "overlay-sandbox-runtime",
+      "name": "@overlay/sandbox-runtime",
+      "version": "0.0.1"
+    },
+    {
+      "dir": "overlay-storage-contracts",
+      "name": "@overlay/storage-contracts",
+      "version": "0.0.1"
+    },
+    {
+      "dir": "overlay-tools-core",
+      "name": "@overlay/tools-core",
+      "version": "0.0.1"
+    },
+    {
+      "dir": "overlay-ui",
+      "name": "@overlay/ui",
+      "version": "0.0.1"
+    },
+    {
+      "dir": "overlay-workspace-contracts",
+      "name": "@overlay/workspace-contracts",
+      "version": "0.0.1"
+    }
+  ]
+}

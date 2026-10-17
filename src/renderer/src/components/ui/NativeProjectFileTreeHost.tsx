@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   NativeProjectFileTree,
   buildNativeProjectFileTree,
-} from '@overlay/modules-react/projects'
+} from './native-file-tree'
 
 export function NativeProjectFileTreeHost({
   workingFolder,
