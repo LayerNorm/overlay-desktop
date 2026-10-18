@@ -42,6 +42,10 @@ export interface AccountEntitlements {
   budgetUsedCents: number
   budgetTotalCents: number
   budgetRemainingCents: number
+  allowanceTotalCents?: number
+  allowanceUsedCents?: number
+  allowancePercentUsed?: number
+  topUpBalanceCents?: number
   creditsUsed: number
   creditsTotal: number
   overlayStorageBytesUsed: number
@@ -104,9 +108,12 @@ export interface CheckoutVerifyResponse {
 }
 
 export interface TopUpCheckoutRequest {
+  acceptedLegalTerms: true
   amountCents: number
   autoTopUpEnabled: boolean
+  privacyVersion: string
   returnPath?: string
+  termsVersion: string
 }
 
 export interface TopUpCheckoutResponse {

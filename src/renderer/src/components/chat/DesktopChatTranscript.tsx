@@ -6,7 +6,6 @@ import {
   type WebSourceItem
 } from '@overlay/chat-core'
 import {
-  ChatReactConfigContext,
   type AttachmentPreview,
   type AttachmentPreviewOpenOptions
 } from '@overlay/chat-react'
@@ -52,8 +51,6 @@ const DESKTOP_TRANSCRIPT_PRESENTATION: ChatTranscriptPresentation = {
   showModelLabel: true,
   maxContentWidth: '56rem'
 }
-
-const DESKTOP_CHAT_REACT_CONFIG = { toolLogoUrl: overlayLogoUrl }
 
 const ACTIVE_RESPONSE_STATUSES = new Set<ChatExchangeStatus>([
   'submitted',
@@ -238,24 +235,22 @@ export function DesktopChatTranscript({
   const transcriptActions = useMemo(() => ({ renderExchange }), [renderExchange])
 
   return (
-    <ChatReactConfigContext.Provider value={DESKTOP_CHAT_REACT_CONFIG}>
+    <div
+      className="overlay-chat-surface shared-chat-scope min-w-0"
+      data-theme={theme.isDark ? 'dark' : 'light'}
+      style={scopeStyle as CSSProperties}
+    >
       <div
-        className="overlay-chat-surface shared-chat-scope min-w-0"
-        data-theme={theme.isDark ? 'dark' : 'light'}
-        style={scopeStyle as CSSProperties}
+        className={`mx-auto flex w-full min-w-0 max-w-4xl flex-col ${
+          resolvedPresentation.density === 'compact' ? 'gap-3' : 'gap-5 sm:gap-6'
+        }`}
       >
-        <div
-          className={`mx-auto flex w-full min-w-0 max-w-4xl flex-col ${
-            resolvedPresentation.density === 'compact' ? 'gap-3' : 'gap-5 sm:gap-6'
-          }`}
-        >
-          <ChatTranscript
-            view={transcriptView}
-            actions={transcriptActions}
-            presentation={resolvedPresentation}
-          />
-        </div>
+        <ChatTranscript
+          view={transcriptView}
+          actions={transcriptActions}
+          presentation={resolvedPresentation}
+        />
       </div>
-    </ChatReactConfigContext.Provider>
+    </div>
   )
 }

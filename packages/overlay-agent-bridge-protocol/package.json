@@ -1,0 +1,45 @@
+{
+  "name": "@layernorm/overlay-agent-bridge-protocol",
+  "version": "0.3.11",
+  "description": "Versioned command and event contracts for Overlay Agent Host.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LayerNorm/overlay-web.git",
+    "directory": "packages/overlay-agent-bridge-protocol"
+  },
+  "homepage": "https://github.com/LayerNorm/overlay-web/tree/main/packages/overlay-agent-bridge-protocol#readme",
+  "bugs": {
+    "url": "https://github.com/LayerNorm/overlay-web/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "dist",
+    "README.md",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "test": "tsx --test src/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "tsx": "^4.8.1",
+    "typescript": "^5"
+  },
+  "private": false
+}

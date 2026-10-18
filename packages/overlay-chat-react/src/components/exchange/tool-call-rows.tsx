@@ -1,4 +1,4 @@
-import type { ToolGroupItem,ToolVisualBlock } from '@overlay/chat-core'
+import type { ToolGroupItem, ToolVisualBlock } from '@overlay/chat-core'
 import {
 TOOL_UI_DONE_STATES,
 isOverlayGatedToolOutput
@@ -22,19 +22,31 @@ export function ToolCallRowWithReasoning({
   connectBottom?: boolean
 }) {
   const toolDone = TOOL_UI_DONE_STATES.has(block.state)
-  const err = block.state === 'output-error' || block.state === 'output-denied'
+  const err = block.state === 'input-error' || block.state === 'output-error' || block.state === 'output-denied'
   const running = !toolDone && !err
-  const label = getDescriptiveToolLabel(block.name, block.toolInput)
+  const label = getDescriptiveToolLabel(
+    block.name,
+    block.toolInput,
+    block.state === 'output-denied'
+      ? 'denied'
+      : block.state === 'output-error' || block.state === 'input-error'
+        ? 'error'
+        : toolDone
+          ? 'complete'
+          : 'running',
+  )
 
   const pad = variant === 'nested' ? 'py-0.5' : 'py-1'
 
   return (
     <div className="w-full max-w-[min(100%,36rem)]">
-      <div className={`flex items-stretch gap-2.5 ${pad} text-[13px] leading-snug`}>
+      <div
+        className={`flex items-stretch gap-2.5 ${pad} text-[13px] leading-snug`}
+      >
         <ToolLogoColumn connectTop={connectTop} connectBottom={connectBottom} />
         <span
           className={`min-w-0 ${
-            running && !err ? 'tool-line-shimmer' : err ? 'text-red-600' : 'text-[var(--tool-line-label)]'
+            running && !err ? 'tool-line-shimmer' : err ? 'text-red-600' : 'text-(--tool-line-label)'
           }`}
         >
           {label}
@@ -43,6 +55,17 @@ export function ToolCallRowWithReasoning({
     </div>
   )
 }
+
+const upgradeLink = (
+  // Internal nav without Link — this package has no next/ dependency.
+  // react-doctor-disable-next-line react-doctor/nextjs-no-a-element
+  <a
+    href='/pricing'
+    className='whitespace-nowrap font-medium text-(--foreground) underline underline-offset-2 hover:opacity-80'
+  >
+    Upgrade
+  </a>
+)
 
 export function GatedPaidFeatureCallout({
   block,
@@ -60,14 +83,8 @@ export function GatedPaidFeatureCallout({
     <div className="w-full px-1 py-0.5">
       <div className="flex w-full max-w-full items-start justify-start gap-2.5">
         <ToolLogoColumn connectTop={connectTop} connectBottom={connectBottom} />
-        <p className="w-fit max-w-[min(100%,22rem)] rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] px-2.5 py-1.5 text-[11px] leading-relaxed text-[var(--muted)]">
-          {line}{' '}
-          <a
-            href="/pricing"
-            className="whitespace-nowrap font-medium text-[var(--foreground)] underline underline-offset-2 hover:opacity-80"
-          >
-            Upgrade
-          </a>
+        <p className="w-fit max-w-[min(100%,22rem)] rounded-lg border border-(--border) bg-(--surface-subtle) px-2.5 py-1.5 text-[11px] leading-relaxed text-(--muted)">
+          {line} {upgradeLink}
         </p>
       </div>
     </div>
@@ -105,7 +122,9 @@ export function ToolCallsCollapsedGroup({
   const anyRunning =
     tools.some((t) => !TOOL_UI_DONE_STATES.has(t.state)) ||
     items.some((it) => it.kind === 'reasoning' && it.state !== 'done')
-  const anyErr = tools.some((t) => t.state === 'output-error' || t.state === 'output-denied')
+  const anyErr = tools.some(
+    (t) => t.state === 'input-error' || t.state === 'output-error' || t.state === 'output-denied',
+  )
   const summary =
     anyErr
       ? `${n} tools called`
@@ -118,15 +137,19 @@ export function ToolCallsCollapsedGroup({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex h-auto w-fit max-w-full items-stretch gap-2.5 rounded-md px-0 py-1 text-left text-[13px] leading-snug text-[var(--tool-line-label)] hover:bg-transparent"
+        className="inline-flex h-auto w-fit max-w-full items-stretch gap-2.5 rounded-md px-0 py-1 text-left text-[13px] leading-snug text-(--tool-line-label) hover:bg-transparent"
       >
         <ToolLogoColumn connectTop={connectTop} connectBottom={connectBottom} />
         <span className="inline-flex min-w-0 items-center gap-1">
-          <span className={`min-w-0 ${anyRunning && !anyErr ? 'tool-line-shimmer' : ''}`}>{summary}</span>
+          <span
+            className={`min-w-0 ${anyRunning && !anyErr ? 'tool-line-shimmer' : ''}`}
+          >
+            {summary}
+          </span>
           <ChevronDown
             size={14}
             strokeWidth={1.75}
-            className={`shrink-0 text-[var(--tool-line-chevron)] transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+            className={`shrink-0 text-(--tool-line-chevron) transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
             aria-hidden
           />
         </span>

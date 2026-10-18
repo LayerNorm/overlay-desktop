@@ -1,7 +1,10 @@
 import type { MutationSuccessResponse, PaginationQueryContract } from './common'
+import type { ScopedResourceFields } from './resource-scope'
 
-export interface KnowledgeFile {
+export interface KnowledgeFile extends ScopedResourceFields {
   _id: string
+  /** The creator; only they can move it between scopes. */
+  userId?: string
   clientId?: string
   name: string
   type: 'file' | 'folder' | 'note' | 'output' | string
@@ -10,6 +13,8 @@ export interface KnowledgeFile {
   content?: string
   textContent?: string
   previewText?: string
+  /** Text too large to keep inline: the full text is the stored object and `content` is a prefix. */
+  textInObjectStore?: boolean
   mimeType?: string
   extension?: string
   sizeBytes?: number
@@ -20,7 +25,6 @@ export interface KnowledgeFile {
   prompt?: string
   createdAt: number
   updatedAt: number
-  projectId?: string
 }
 
 export type KnowledgeFileKind = 'folder' | 'note' | 'upload' | 'output' | string
@@ -33,7 +37,6 @@ export interface KnowledgeFileTreeNode extends KnowledgeFile {
 
 export interface FileQueryContract extends PaginationQueryContract {
   fileId?: string
-  projectId?: string | null
   kind?: KnowledgeFileKind
   parentId?: string | null
   conversationId?: string
@@ -52,7 +55,6 @@ export interface CreateFileRequest {
   textContent?: string
   r2Key?: string
   sizeBytes?: number
-  projectId?: string | null
   mimeType?: string
   extension?: string
   conversationId?: string
@@ -61,6 +63,8 @@ export interface CreateFileRequest {
   prompt?: string
   outputType?: string
   legacyOutputId?: string
+  /** Defaults to personal. */
+  scope?: 'personal' | 'workspace'
   accessToken?: string
   userId?: string
 }
@@ -79,7 +83,6 @@ export interface UpdateFileRequest {
   content?: string
   textContent?: string
   parentId?: string | null
-  projectId?: string | null
   accessToken?: string
   userId?: string
 }
@@ -136,7 +139,6 @@ export interface FileBulkActionRequest {
   action: FileBulkAction
   fileIds: readonly string[]
   targetParentId?: string | null
-  targetProjectId?: string | null
   visibility?: 'private' | 'public'
 }
 
@@ -174,13 +176,17 @@ export interface MemoryRow {
   source: string
   type?: 'preference' | 'fact' | 'project' | 'decision' | 'agent'
   importance?: number
-  projectId?: string
   conversationId?: string
   noteId?: string
   messageId?: string
   turnId?: string
   tags?: string[]
   actor?: 'user' | 'agent'
+  canDelete?: boolean
+  creatorEmail?: string
+  creatorName?: string
+  creatorPrincipalId?: string
+  creatorUserId?: string
   status?: 'candidate' | 'approved' | 'rejected'
   createdAt: number
   updatedAt?: number
@@ -191,9 +197,9 @@ export interface MemoryQueryContract extends PaginationQueryContract {
   raw?: boolean
   updatedSince?: number
   includeDeleted?: boolean
-  projectId?: string
   conversationId?: string
   noteId?: string
+  memberPrincipalId?: string
 }
 
 export interface CreateMemoryRequest {
@@ -202,7 +208,6 @@ export interface CreateMemoryRequest {
   clientId?: string
   type?: 'preference' | 'fact' | 'project' | 'decision' | 'agent'
   importance?: number
-  projectId?: string
   conversationId?: string
   noteId?: string
   messageId?: string

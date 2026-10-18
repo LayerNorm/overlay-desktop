@@ -9,9 +9,12 @@ import type { EventBus, RateLimiter } from './server-runtime'
 
 export type OverlayIconName =
   | 'arrow-up'
+  | 'book-open'
+  | 'bot'
   | 'chrome'
   | 'file-text'
   | 'folder-open'
+  | 'list-checks'
   | 'mail'
   | 'message-square'
   | 'monitor'
@@ -32,7 +35,6 @@ export type OverlayIconName =
 export type OverlayFeatureFlagId =
   | 'voiceTranscription'
   | 'knowledge'
-  | 'projects'
   | 'automations'
   | 'extensions'
   | (string & {})
@@ -83,7 +85,6 @@ export interface OverlaySettingsSection {
 export type OverlayFeatureModuleId =
   | 'files-knowledge'
   | 'notes'
-  | 'projects'
   | 'tools-extensions'
   | 'settings-account'
   | (string & {})
@@ -105,7 +106,6 @@ export interface OverlayFeatureModule {
 export type OverlaySidebarActionKey =
   | 'chat.create'
   | 'notes.create'
-  | 'projects.create'
   | 'automations.create'
   | (string & {})
 

@@ -65,6 +65,14 @@ export interface McpServerFormValues {
 export interface McpTestResultState {
   ok: boolean
   message: string
+  /** Set when the failure looks like an OAuth-only server, so the dialog can offer Connect. */
+  requiresAuth?: boolean
+}
+
+/** Result of an MCP create/update/delete attempt, carrying the server error so the dialog can show it. */
+export interface McpMutationResult {
+  ok: boolean
+  error?: string
 }
 
 export type ExtensionCatalogItem =
@@ -472,10 +480,19 @@ export function filterMcpServers(servers: readonly McpServerSummary[], query: st
   )
 }
 
+export function formatMcpMutationError(
+  payload: { error?: unknown } | null | undefined,
+  fallback: string,
+): string {
+  const error = payload?.error
+  return typeof error === 'string' && error.trim() ? error.trim() : fallback
+}
+
 export function formatMcpTestResult(response: TestMcpServerResponse, ok: boolean): McpTestResultState {
   return {
     ok: ok && response.ok,
     message: ok && response.ok ? `Connected — ${response.toolCount ?? 0} tools available` : (response.error || 'Connection failed'),
+    ...(response.requiresAuth ? { requiresAuth: true } : {}),
   }
 }
 

@@ -10,19 +10,43 @@ export const GENERATION_TOOL_IDS = [
   'edit_video',
 ] as const
 
+/**
+ * Persistent-computer tool ids, also listed in src/shared/agents/tool-groups.ts
+ * for the agent Computer group — this package cannot import app code, so the
+ * two lists must stay in sync.
+ */
+export const COMPUTER_TOOL_IDS = [
+  'computer_exec',
+  'computer_read_file',
+  'computer_write_file',
+  'computer_list_files',
+  'computer_open_url',
+] as const
+
 export const OVERLAY_TOOL_IDS = [
   'search_knowledge',
   'search_in_files',
+  'list_files',
+  'read_file',
+  'write_file',
+  'create_folder',
+  'move_file',
+  'search_memory',
+  'search_messages',
+  'list_chats',
+  'read_chat',
   'save_memory',
   'save_memory_batch',
   'update_memory',
   'delete_memory',
   'browser_run_task',
   'interactive_browser_session',
-  'run_daytona_sandbox',
   'list_notes',
   'get_note',
   'create_note',
+  'append_to_note',
+  'replace_note_section',
+  'edit_note',
   'update_note',
   'delete_note',
   'list_skills',
@@ -33,6 +57,13 @@ export const OVERLAY_TOOL_IDS = [
   'update_automation',
   'pause_automation',
   'delete_automation',
+  'create_agent',
+  'update_agent',
+  'list_agents',
+  'ask_agent',
+  'read_agent_reply',
+  'post_message',
+  ...COMPUTER_TOOL_IDS,
   ...GENERATION_TOOL_IDS,
 ] as const
 

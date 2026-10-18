@@ -1,11 +1,12 @@
 import { z } from 'zod'
+import { ResourceViewQuery } from './misc'
 import { AuthFields, BooleanQueryValue, IdQuery, PaginationQuery, UnknownResponse } from './common'
 
 export const AutomationListQuery = PaginationQuery.extend({
   automationId: IdQuery,
-  projectId: IdQuery,
   includeDeleted: BooleanQueryValue,
   runs: BooleanQueryValue,
+  view: ResourceViewQuery,
 })
 
 export const CreateAutomationRequest = z.object({
@@ -13,7 +14,6 @@ export const CreateAutomationRequest = z.object({
   name: z.string().min(1).max(200).optional(),
   prompt: z.string().optional(),
   schedule: z.unknown().optional(),
-  projectId: z.string().optional(),
 }).passthrough()
 
 export const UpdateAutomationRequest = CreateAutomationRequest.partial().extend({

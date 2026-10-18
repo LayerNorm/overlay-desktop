@@ -5,68 +5,42 @@ ConnectorCatalogItem
 } from '@overlay/app-core'
 import {
 Loader2,
-Plus,
-Search
+Plus
 } from 'lucide-react'
-import { useState,type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { HeaderSearch, ListRow } from '@overlay/ui/primitives'
 import { AppScreenBody, AppScreenHeader } from '../shell'
 
 export interface ExtensionPageHeaderProps {
   title: string
-  searchOpen: boolean
   searchQuery: string
   searchPlaceholder: string
   searchTitle: string
   action?: ReactNode
-  onSearchOpenChange: (open: boolean) => void
   onSearchQueryChange: (query: string) => void
 }
 
 export function ExtensionPageHeader({
   title,
-  searchOpen,
   searchQuery,
   searchPlaceholder,
   searchTitle,
   action,
-  onSearchOpenChange,
   onSearchQueryChange,
 }: ExtensionPageHeaderProps) {
   return (
-    <AppScreenHeader className="px-3 py-2.5 sm:px-6">
-      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-        <div className="shrink-0">
-          <h1 className="text-sm font-medium text-[var(--foreground)]">{title}</h1>
-        </div>
-        {searchOpen ? (
-          <input
-            value={searchQuery}
-            onChange={(event) => onSearchQueryChange(event.target.value)}
-            placeholder={searchPlaceholder}
-            autoFocus
-            className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-1.5 text-xs text-[var(--foreground)] outline-none placeholder:text-[var(--muted-light)] focus:border-[var(--muted)] max-sm:order-3 max-sm:w-full max-sm:flex-none"
-          />
-        ) : (
-          <div className="flex-1" />
-        )}
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            title={searchTitle}
-            onClick={() => {
-              onSearchOpenChange(!searchOpen)
-              if (searchOpen) onSearchQueryChange('')
-            }}
-            className={`flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--muted)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] ${
-              searchOpen ? 'border-[var(--muted)] bg-[var(--surface-subtle)] text-[var(--foreground)]' : ''
-            }`}
-          >
-            <Search size={14} strokeWidth={1.75} />
-          </button>
-          {action}
-        </div>
-      </div>
-    </AppScreenHeader>
+    <AppScreenHeader
+      title={title}
+      search={
+        <HeaderSearch
+          value={searchQuery}
+          onChange={onSearchQueryChange}
+          label={searchTitle}
+          placeholder={searchPlaceholder}
+        />
+      }
+      actions={action}
+    />
   )
 }
 
@@ -82,7 +56,7 @@ export function IntegrationLogo({ logoUrl, name, size = 28 }: IntegrationLogoPro
 
   return (
     <span
-      className="inline-flex flex-shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)]"
+      className="inline-flex shrink-0 items-center justify-center rounded-lg border border-(--border) bg-(--surface-elevated)"
       style={{ width: size, height: size }}
     >
       {logoUrl && !hasError ? (
@@ -95,7 +69,7 @@ export function IntegrationLogo({ logoUrl, name, size = 28 }: IntegrationLogoPro
           onError={() => setFailedLogoUrl(logoUrl)}
         />
       ) : (
-        <span className="text-xs font-bold text-[var(--foreground)]">{name.charAt(0).toUpperCase()}</span>
+        <span className="text-xs font-bold text-(--foreground)">{name.charAt(0).toUpperCase()}</span>
       )}
     </span>
   )
@@ -146,13 +120,13 @@ export function IntegrationsPanel({
           {error ? (
             <div className="flex items-center justify-between rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-400">
               <span>{error}</span>
-              <button onClick={onClearError} className="ml-2 text-red-400 hover:text-red-300">✕</button>
+              <button type="button" aria-label="Dismiss error" onClick={onClearError} className="ml-2 text-red-400 hover:text-red-300">✕</button>
             </div>
           ) : null}
 
           {connectedRows.length > 0 ? (
             <div>
-              <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-light)]">Connected</p>
+              <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.14em] text-(--muted-light)">Connected</p>
               <div className="space-y-1">
                 {connectedShown.map((integration) => (
                   <IntegrationRow
@@ -173,11 +147,11 @@ export function IntegrationsPanel({
 
           <div>
             <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-light)]">Available</p>
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-(--muted-light)">Available</p>
               <button
                 type="button"
                 onClick={onOpenCatalog}
-                className="flex shrink-0 items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--surface-subtle)] px-2 py-1 text-xs text-[var(--foreground)] transition-colors hover:bg-[var(--border)]"
+                className="flex shrink-0 items-center gap-1 rounded-md border border-(--border) bg-(--surface-subtle) px-2 py-1 text-xs text-(--foreground) transition-colors hover:bg-(--border)"
                 title="Browse all integrations"
               >
                 <Plus size={12} />
@@ -211,7 +185,7 @@ function ShowMoreButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="mt-3 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] py-2 text-xs font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--border)]"
+      className="mt-3 w-full rounded-lg border border-(--border) bg-(--surface-subtle) py-2 text-xs font-medium text-(--foreground) transition-colors hover:bg-(--border)"
     >
       Show more
     </button>
@@ -236,25 +210,22 @@ function IntegrationRow({
     ? actionUnavailable ? 'Managed externally' : 'Disconnect'
     : integration.capabilities?.connectionSetup === 'provider-console' ? 'Configure' : 'Connect'
   return (
-    <div className="flex items-center justify-between rounded-lg px-3 py-3 transition-colors hover:bg-[var(--surface-muted)]">
-      <div className="flex min-w-0 items-center gap-3">
-        <IntegrationLogo logoUrl={logoUrl} name={integration.name} />
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-[var(--foreground)]">{integration.name}</p>
-          </div>
-          <p className="truncate text-xs text-[var(--muted)]">{integration.description}</p>
-        </div>
-      </div>
-      <button
-        onClick={() => onAction(integration)}
-        disabled={isConnecting || actionUnavailable}
-        className="ml-4 flex-shrink-0 rounded-md border border-[var(--border)] bg-[var(--surface-subtle)] px-3 py-1.5 text-xs text-[var(--foreground)] transition-colors hover:bg-[var(--border)] disabled:opacity-50"
-      >
-        {isConnecting ? (
-          <Loader2 size={11} className="animate-spin" />
-        ) : actionLabel}
-      </button>
-    </div>
+    <ListRow
+      leading={<IntegrationLogo logoUrl={logoUrl} name={integration.name} />}
+      title={integration.name}
+      description={integration.description}
+      trailing={
+        <button
+          type="button"
+          onClick={() => onAction(integration)}
+          disabled={isConnecting || actionUnavailable}
+          className="shrink-0 rounded-md border border-(--border) bg-(--surface-subtle) px-3 py-1.5 text-xs text-(--foreground) transition-colors hover:bg-(--border) disabled:opacity-50"
+        >
+          {isConnecting ? (
+            <Loader2 size={11} className="animate-spin" />
+          ) : actionLabel}
+        </button>
+      }
+    />
   )
 }

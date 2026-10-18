@@ -7,7 +7,15 @@ export type WebSourceItem = {
   url: string
   title: string
   snippet?: string
-  origin: 'web-search' | 'browser'
+  origin: 'web-search' | 'browser' | 'knowledge'
+  /**
+   * In-app route for knowledge sources (a file, note, or memory). Present only
+   * when `origin === 'knowledge'`; those have no external URL, so renderers
+   * link here instead of opening a new tab.
+   */
+  internalHref?: string
+  /** Which internal resource this is — drives the icon and the row subtitle. */
+  internalKind?: 'file' | 'memory' | 'message'
 }
 
 /** Hash href for markdown (survives rehype-sanitize; click opens real URL in React). */
@@ -97,12 +105,14 @@ export function linkifyInlineWebCitations(
           /(?<!\[)(?:\[\s*\d+\s*\](?:\s*[, ]\s*|\s*))+/g,
           (full) => {
             const indices: number[] = []
+            const seenIndices = new Set<number>()
             const perMarker = /\[\s*(\d+)\s*\]/g
             let m: RegExpExecArray | null
             while ((m = perMarker.exec(full)) !== null) {
               const idx = Number(m[1])
-              if (Number.isFinite(idx) && idx >= 1 && idx <= sources.length) {
-                if (!indices.includes(idx)) indices.push(idx)
+              if (Number.isFinite(idx) && idx >= 1 && idx <= sources.length && !seenIndices.has(idx)) {
+                seenIndices.add(idx)
+                indices.push(idx)
               }
             }
             if (indices.length === 0) return full

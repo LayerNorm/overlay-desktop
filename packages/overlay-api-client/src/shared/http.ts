@@ -55,11 +55,63 @@ async function mergeHeaders(
 }
 
 export async function parseJson<T>(response: Response): Promise<T> {
-  return (await response.json()) as T
+  const value = await response.json().catch(() => null) as unknown
+  if (!response.ok) {
+    const detail = value && typeof value === 'object'
+      ? ('error' in value && typeof value.error === 'string'
+          ? value.error
+          : 'message' in value && typeof value.message === 'string'
+            ? value.message
+            : null)
+      : null
+    if (response.status === 429) {
+      const retryAfterSeconds = retryAfterSecondsFromResponse(response, value)
+      const retryGuidance = retryAfterSeconds === null
+        ? 'Please wait a moment, then try again.'
+        : `Try again in ${formatRetryDelay(retryAfterSeconds)}.`
+      throw new ApiRequestError(
+        `${detail ?? 'Too many requests'}. This account has reached its temporary request limit. ${retryGuidance}`,
+        response.status,
+      )
+    }
+    throw new ApiRequestError(detail ?? `Request failed (${response.status})`, response.status)
+  }
+  return value as T
+}
+
+/** Request failure carrying the HTTP status so callers can distinguish a
+ * gated-404 ("feature off for this workspace") from a real failure (401/500). */
+export class ApiRequestError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message)
+    this.name = 'ApiRequestError'
+  }
+}
+
+function retryAfterSecondsFromResponse(response: Response, value: unknown): number | null {
+  const bodySeconds = value && typeof value === 'object' && 'retryAfterSeconds' in value
+    ? Number(value.retryAfterSeconds)
+    : Number.NaN
+  if (Number.isFinite(bodySeconds) && bodySeconds >= 0) return Math.ceil(bodySeconds)
+
+  const headerSeconds = Number(response.headers.get('Retry-After'))
+  return Number.isFinite(headerSeconds) && headerSeconds >= 0 ? Math.ceil(headerSeconds) : null
+}
+
+function formatRetryDelay(totalSeconds: number): string {
+  if (totalSeconds < 60) {
+    const seconds = Math.max(1, totalSeconds)
+    return `${seconds} second${seconds === 1 ? '' : 's'}`
+  }
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  const minuteLabel = `${minutes} minute${minutes === 1 ? '' : 's'}`
+  if (seconds === 0) return minuteLabel
+  return `${minuteLabel} ${seconds} second${seconds === 1 ? '' : 's'}`
 }
 
 export async function parseJsonData<T>(response: Response): Promise<T> {
-  const value = await response.json()
+  const value = await parseJson<unknown>(response)
   return (isPaginatedEnvelope(value) ? value.data : value) as T
 }
 

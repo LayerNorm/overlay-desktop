@@ -12,7 +12,8 @@ export interface ExchangeActionsProps {
   onBranch?: () => void
   turnIdForActions: string | null
   actionsLocked: boolean
-  webSources: readonly WebSourceItem[]
+  /** Web and knowledge sources for this turn, in the order the panel lists them. */
+  sources: readonly WebSourceItem[]
   onOpenSources?: (turnId: string, sources: WebSourceItem[]) => void
   userMsgId: string
   isSourcesOpenForThis: boolean
@@ -31,7 +32,7 @@ export function ExchangeActions({
   onBranch,
   turnIdForActions,
   actionsLocked,
-  webSources,
+  sources,
   onOpenSources,
   userMsgId,
   isSourcesOpenForThis,
@@ -56,7 +57,7 @@ export function ExchangeActions({
           type="button"
           onClick={onRetry}
           disabled={retryDisabled}
-          className="rounded-md p-1.5 text-[var(--muted)] transition-all hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] active:scale-90 active:bg-[var(--border)] disabled:cursor-not-allowed disabled:opacity-30"
+          className="rounded-md p-1.5 text-(--muted) transition-all hover:bg-(--surface-subtle) hover:text-(--foreground) active:scale-90 active:bg-(--border) disabled:cursor-not-allowed disabled:opacity-30"
           aria-label="Regenerate response"
           title="Regenerate response"
         >
@@ -67,7 +68,7 @@ export function ExchangeActions({
         type="button"
         onClick={onDeleteTurn}
         disabled={!turnIdForActions || actionsLocked || isExiting}
-        className="rounded-md p-1.5 text-[var(--muted)] transition-all hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] active:scale-90 active:bg-[var(--border)] disabled:cursor-not-allowed disabled:opacity-30"
+        className="rounded-md p-1.5 text-(--muted) transition-all hover:bg-(--surface-subtle) hover:text-(--foreground) active:scale-90 active:bg-(--border) disabled:cursor-not-allowed disabled:opacity-30"
         aria-label="Delete this turn from history"
       >
         <Trash2 size={14} strokeWidth={1.75} />
@@ -76,7 +77,7 @@ export function ExchangeActions({
         type="button"
         onClick={onReply}
         disabled={isExiting}
-        className="rounded-md p-1.5 text-[var(--muted)] transition-all hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] active:scale-90 active:bg-[var(--border)] disabled:cursor-not-allowed disabled:opacity-30"
+        className="rounded-md p-1.5 text-(--muted) transition-all hover:bg-(--surface-subtle) hover:text-(--foreground) active:scale-90 active:bg-(--border) disabled:cursor-not-allowed disabled:opacity-30"
         aria-label="Reply"
       >
         <Reply size={14} strokeWidth={1.75} />
@@ -86,22 +87,22 @@ export function ExchangeActions({
           type="button"
           onClick={onBranch}
           disabled={!turnIdForActions || actionsLocked || isExiting}
-          className="rounded-md p-1.5 text-[var(--muted)] transition-all hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] active:scale-90 active:bg-[var(--border)] disabled:cursor-not-allowed disabled:opacity-30"
+          className="rounded-md p-1.5 text-(--muted) transition-all hover:bg-(--surface-subtle) hover:text-(--foreground) active:scale-90 active:bg-(--border) disabled:cursor-not-allowed disabled:opacity-30"
           aria-label="Branch chat from here"
           title="Branch chat from here"
         >
           <GitBranch size={14} strokeWidth={1.75} />
         </button>
       ) : null}
-      {webSources.length > 0 && onOpenSources ? (
+      {sources.length > 0 && onOpenSources ? (
         <button
           type="button"
-          onClick={() => onOpenSources(turnIdForActions ?? userMsgId, [...webSources])}
+          onClick={() => onOpenSources(turnIdForActions ?? userMsgId, [...sources])}
           disabled={isExiting}
-          className={`ml-0.5 inline-flex items-center gap-1 rounded-md px-2 py-1.5 transition-all hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30 ${
+          className={`ml-0.5 inline-flex items-center gap-1 rounded-md px-2 py-1.5 transition-all hover:bg-(--surface-subtle) hover:text-(--foreground) active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30 ${
             isSourcesOpenForThis
-              ? 'bg-[var(--surface-subtle)] text-[var(--foreground)]'
-              : 'text-[var(--muted)]'
+              ? 'bg-(--surface-subtle) text-(--foreground)'
+              : 'text-(--muted)'
           }`}
           aria-label="Open sources"
           aria-pressed={isSourcesOpenForThis}
@@ -111,7 +112,7 @@ export function ExchangeActions({
         </button>
       ) : null}
       {showModelLabel ? (
-        <span className="ml-2 min-w-0 text-left text-[11px] text-[var(--muted-light)]">
+        <span className="ml-2 min-w-0 text-left text-[11px] text-(--muted-light)">
           {modelLabel}
         </span>
       ) : null}

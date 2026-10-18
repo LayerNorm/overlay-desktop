@@ -343,7 +343,7 @@ function EnvironmentRow({
             <textarea
               value={roots}
               onChange={(event) => onRootsChange(event.target.value)}
-              placeholder="/Users/you/Projects"
+              placeholder="~/Projects"
               style={{
                 marginTop: '6px',
                 minHeight: '64px',

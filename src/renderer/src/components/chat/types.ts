@@ -159,7 +159,6 @@ export interface ChatMeta {
   createdAt: number
   updatedAt: number
   isAgent?: boolean
-  projectId?: string
 }
 
 export interface Chat extends ChatMeta {

@@ -49,6 +49,57 @@ export function saveChatFolders(folders: Folder[]): void {
   localStorage.setItem(CHAT_FOLDERS_KEY, JSON.stringify(folders))
 }
 
+const LEGACY_PROJECTS_KEY = 'overlay-projects'
+const LEGACY_PROJECTS_MIGRATED_KEY = 'overlay-projects-migrated-to-chat-folders-v1'
+
+// One-time migration: server Projects were retired upstream; their last local
+// representation already lived in chat folders, but builds predating that
+// bridge may still hold a standalone 'overlay-projects' list. Fold any
+// remaining entries into chat folders so no local organization is lost.
+function migrateLegacyProjectsIfNeeded(): void {
+  if (typeof localStorage === 'undefined') return
+  if (localStorage.getItem(LEGACY_PROJECTS_MIGRATED_KEY) === 'true') return
+
+  try {
+    const data = localStorage.getItem(LEGACY_PROJECTS_KEY)
+    if (!data) {
+      localStorage.setItem(LEGACY_PROJECTS_MIGRATED_KEY, 'true')
+      return
+    }
+
+    const legacyProjects = JSON.parse(data) as Array<{
+      id: string
+      name: string
+      parentId: string | null
+      createdAt: number
+      updatedAt: number
+    }>
+    const existing = new Set(loadChatFolders().map((folder) => folder.id))
+
+    for (const project of legacyProjects) {
+      if (existing.has(project.id)) continue
+      const folders = loadChatFolders()
+      folders.push({
+        id: project.id,
+        name: project.name,
+        parentId: project.parentId ?? null,
+        instructions: '',
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        isExpanded: true,
+      })
+      saveChatFolders(folders)
+    }
+
+    localStorage.removeItem(LEGACY_PROJECTS_KEY)
+    localStorage.setItem(LEGACY_PROJECTS_MIGRATED_KEY, 'true')
+  } catch {
+    localStorage.setItem(LEGACY_PROJECTS_MIGRATED_KEY, 'true')
+  }
+}
+
+migrateLegacyProjectsIfNeeded()
+
 export function createChatFolder(
   name: string,
   parentId: string | null = null,

@@ -5,26 +5,33 @@ import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const failures = []
 const manifest = readJson('package.json')
-const expectedPackages = new Set(
-  fs
-    .readdirSync(path.join(root, 'packages'), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => `@overlay/${entry.name.replace(/^overlay-/, '')}`)
+const packageDirs = fs
+  .readdirSync(path.join(root, 'packages'), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name)
+// Expected package names and versions come from each vendored package's own
+// manifest: @overlay/* packages are pinned at 0.0.1 while @layernorm/* public
+// packages keep their upstream release version.
+const expectedPackages = new Map(
+  packageDirs.map((directory) => {
+    const packageManifest = readJson(`packages/${directory}/package.json`)
+    return [packageManifest.name, packageManifest.version]
+  })
 )
 
-for (const packageName of expectedPackages) {
+for (const [packageName, packageVersion] of expectedPackages) {
   const version =
     manifest.dependencies?.[packageName] ?? manifest.devDependencies?.[packageName]
-  if (version !== '0.0.1') {
-    failures.push(`root manifest must consume ${packageName} at exact version 0.0.1`)
+  if (version !== packageVersion) {
+    failures.push(`root manifest must consume ${packageName} at exact version ${packageVersion}`)
   }
 }
 
-for (const directory of fs.readdirSync(path.join(root, 'packages'))) {
+for (const directory of packageDirs) {
   const packageRoot = path.join(root, 'packages', directory)
   if (!fs.statSync(packageRoot).isDirectory()) continue
   const packageManifest = readJson(`packages/${directory}/package.json`)
-  if (packageManifest.version !== '0.0.1') {
+  if (packageManifest.name?.startsWith('@overlay/') && packageManifest.version !== '0.0.1') {
     failures.push(`packages/${directory} must use exact version 0.0.1`)
   }
   const dependencyEntries = Object.entries({
@@ -33,8 +40,9 @@ for (const directory of fs.readdirSync(path.join(root, 'packages'))) {
     ...packageManifest.peerDependencies
   })
   for (const [name, version] of dependencyEntries) {
-    if (name.startsWith('@overlay/') && version !== '0.0.1') {
-      failures.push(`${packageManifest.name} must reference ${name} at exact version 0.0.1`)
+    const expectedVersion = expectedPackages.get(name)
+    if (expectedVersion !== undefined && version !== expectedVersion) {
+      failures.push(`${packageManifest.name} must reference ${name} at exact version ${expectedVersion}`)
     }
     if (typeof version === 'string' && version.startsWith('file:')) {
       failures.push(`${packageManifest.name} contains forbidden file dependency ${name}`)

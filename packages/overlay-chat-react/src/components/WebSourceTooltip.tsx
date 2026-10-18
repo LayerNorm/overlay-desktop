@@ -1,27 +1,17 @@
 import React, { useRef, useState, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { Brain, FileText, MessageSquare } from 'lucide-react'
 import type { WebSourceItem } from '../lib/web-sources'
 import { webSourceDisplayKey } from '../lib/web-sources'
+import { faviconUrl, hostFromUrl } from '@overlay/chat-core'
+import { plainTextSnippet } from '@overlay/chat-core'
 
 const SHOW_DELAY_MS = 200
 const HIDE_GRACE_MS = 120
 const GAP_PX = 6
 
-function faviconUrl(pageUrl: string): string {
-  try {
-    const host = new URL(pageUrl).hostname
-    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=32`
-  } catch {
-    return ''
-  }
-}
-
 function hostOf(pageUrl: string): string {
-  try {
-    return new URL(pageUrl).hostname.replace(/^www\./i, '')
-  } catch {
-    return webSourceDisplayKey(pageUrl)
-  }
+  return hostFromUrl(pageUrl) || webSourceDisplayKey(pageUrl)
 }
 
 /**
@@ -129,44 +119,58 @@ export function WebSourceTooltip({
               zIndex: 400,
               width: 'min(calc(100vw - 16px), 22rem)',
             }}
-            className="rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] p-2 shadow-lg"
+            data-overlay-link-scope=""
+            className="rounded-xl border border-(--border) bg-(--surface-elevated) p-2 shadow-lg"
           >
-            <div className="px-2 pb-1.5 pt-0.5 text-[11px] font-medium text-[var(--muted)]">
+            <div className="px-2 pb-1.5 pt-0.5 text-[11px] font-medium text-(--muted)">
               {sources.length === 1 ? '1 source' : `${sources.length} sources`}
             </div>
             <ul className="flex flex-col gap-0.5">
               {sources.map((source, i) => {
-                const host = hostOf(source.url)
-                const shortHost = webSourceDisplayKey(source.url)
-                const fav = faviconUrl(source.url)
+                const internal = source.origin === 'knowledge'
+                const host = internal ? '' : hostOf(source.url)
+                const shortHost = internal
+                  ? (source.internalKind === 'memory' ? 'Memory' : source.internalKind === 'message' ? 'Conversation' : 'File')
+                  : webSourceDisplayKey(source.url)
+                const fav = internal ? '' : faviconUrl(source.url)
+                // Snippets arrive as raw document HTML/markdown; keep prose only.
+                const cleanTitle = plainTextSnippet(source.title)
                 const isTitleJustHost =
-                  !source.title?.trim() ||
-                  source.title.trim().toLowerCase() === host.toLowerCase() ||
-                  source.title.trim().toLowerCase() === shortHost.toLowerCase()
-                const titleText = isTitleJustHost ? host : source.title.trim()
+                  !internal &&
+                  (!cleanTitle ||
+                    cleanTitle.toLowerCase() === host.toLowerCase() ||
+                    cleanTitle.toLowerCase() === shortHost.toLowerCase())
+                const titleText = isTitleJustHost ? host : cleanTitle || shortHost
                 return (
-                  <li key={`${source.url}-${i}`}>
+                  <li key={source.url}>
                     <a
-                      href={source.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--surface-subtle)]"
+                      href={internal ? (source.internalHref ?? source.url) : source.url}
+                      {...(internal ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+                      className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-(--surface-subtle)"
                     >
-                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded bg-[var(--surface-subtle)] ring-1 ring-[var(--border)]">
-                        {fav ? (
+                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-(--surface-subtle) ring-1 ring-(--border)">
+                        {internal ? (
+                          source.internalKind === 'memory' ? (
+                            <Brain size={12} strokeWidth={1.75} className="text-(--muted)" />
+                          ) : source.internalKind === 'message' ? (
+                            <MessageSquare size={12} strokeWidth={1.75} className="text-(--muted)" />
+                          ) : (
+                            <FileText size={12} strokeWidth={1.75} className="text-(--muted)" />
+                          )
+                        ) : fav ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={fav} alt="" className="h-3.5 w-3.5" width={14} height={14} />
                         ) : (
-                          <span className="text-[9px] font-semibold text-[var(--muted)]">
+                          <span className="text-[9px] font-semibold text-(--muted)">
                             {shortHost.charAt(0).toUpperCase()}
                           </span>
                         )}
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-[var(--foreground)]">
+                      <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-(--foreground)">
                         {titleText}
                       </span>
-                      <span className="shrink-0 truncate text-[11px] text-[var(--muted)]" style={{ maxWidth: '40%' }}>
-                        {shortHost}
+                      <span className="shrink-0 truncate text-[11px] text-(--muted)" style={{ maxWidth: '40%' }}>
+                        {internal ? (source.internalKind === 'memory' ? 'Memories' : source.internalKind === 'message' ? 'Chat' : 'Files') : shortHost}
                       </span>
                     </a>
                   </li>

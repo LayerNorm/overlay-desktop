@@ -235,7 +235,7 @@ class WindowManager {
     }
 
     mainWindow.on('blur', () => {
-      mainWindow.setWindowButtonVisibility(true)
+      if (process.platform === 'darwin') mainWindow.setWindowButtonVisibility(true)
     })
 
     this.registerWindowZoomCommands(mainWindow)

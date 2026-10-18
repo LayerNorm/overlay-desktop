@@ -1,0 +1,256 @@
+/** Provider-neutral sandbox primitives owned by Overlay. Provider SDK types must not cross this boundary. */
+
+export type SandboxProviderId = 'box' | 'e2b'
+export type SandboxLifecycleState =
+  | 'provisioning'
+  | 'running'
+  | 'stopped'
+  | 'archived'
+  | 'failed'
+  | 'deleted'
+
+export type SandboxNetworkPolicy =
+  | { mode: 'allow_all' }
+  | { mode: 'deny_all' }
+  | {
+      mode: 'allowlist'
+      domains?: string[]
+      allowedCidrs?: string[]
+      deniedCidrs?: string[]
+    }
+
+export type SandboxCredentialBinding = {
+  /** Opaque broker-owned reference. It is never persisted in provider diagnostics. */
+  brokerRef: string
+  /** Placeholder environment variable visible to the sandbox process. */
+  environmentVariable: string
+  allowedDomains: string[]
+}
+
+export type SandboxCredentialMaterial = {
+  headers: Record<string, string>
+  placeholder?: string
+}
+
+export interface SandboxCredentialBroker {
+  resolve(binding: SandboxCredentialBinding): Promise<SandboxCredentialMaterial>
+}
+
+export type SandboxResources = {
+  vcpus?: number
+  memoryGiB?: number
+  diskGiB?: number
+}
+
+export type SandboxCreateRequest = {
+  name: string
+  image?: string
+  snapshotId?: string
+  persistent: boolean
+  environment?: Record<string, string>
+  ports?: number[]
+  networkPolicy: SandboxNetworkPolicy
+  credentials?: SandboxCredentialBinding[]
+  /** Provider idle-stop setting. Zero disables it. */
+  idleTimeoutMs: number
+  /** Absolute provider/session runtime ceiling. */
+  hardTimeoutMs: number
+  resources?: SandboxResources
+  metadata?: Record<string, string>
+}
+
+export type SandboxCommandRequest = {
+  command: string
+  args?: string[]
+  cwd?: string
+  environment?: Record<string, string>
+  /** Start durably without opening a long-lived log stream in the caller. */
+  detached?: boolean
+  timeoutMs: number
+  signal?: AbortSignal
+}
+
+export type SandboxCommandEvent = {
+  sequence: number
+  stream: 'stdout' | 'stderr'
+  data: string
+  occurredAt: number
+}
+
+export type SandboxCommandResult = {
+  commandId: string
+  exitCode: number
+  stdout: string
+  stderr: string
+  startedAt: number
+  endedAt: number
+}
+
+export interface SandboxCommandHandle {
+  readonly id: string
+  events(): AsyncIterable<SandboxCommandEvent>
+  wait(): Promise<SandboxCommandResult>
+  cancel(): Promise<void>
+}
+
+export type SandboxFileEntry = {
+  path: string
+  kind: 'file' | 'directory' | 'symlink' | 'other'
+  size?: number
+}
+
+export type SandboxPort = {
+  port: number
+  url: string
+  access: 'private' | 'public'
+  expiresAt?: number
+  /**
+   * Headers a client must send when connecting to `url` (for example a
+   * private preview token). These are credentials for the port; never log them.
+   */
+  headers?: Record<string, string>
+}
+
+export type SandboxSnapshot = {
+  id: string
+  createdAt: number
+  expiresAt?: number
+}
+
+export type SandboxUsage = {
+  wallTimeMs?: number
+  activeCpuTimeMs?: number
+  cpuPercent?: number
+  memoryBytes?: number
+  ingressBytes?: number
+  egressBytes?: number
+  providerMetrics?: Record<string, number | string | boolean | null>
+}
+
+export type SandboxCapabilities = {
+  commandStreaming: boolean
+  files: boolean
+  environmentVariables: boolean
+  ports: boolean
+  snapshots: boolean
+  persistence: boolean
+  networkPolicy: boolean
+  networkPolicyUpdates: boolean
+  credentialBrokering: boolean
+  hardTimeout: boolean
+  idleStop: boolean
+  usage: boolean
+  /** The machine has a real display that can be streamed to a browser. */
+  desktop: boolean
+}
+
+export interface SandboxInstance {
+  readonly provider: SandboxProviderId
+  readonly reference: string
+  readonly name: string
+  readonly capabilities: SandboxCapabilities
+  status(): Promise<SandboxLifecycleState>
+  workingDirectory(): Promise<string>
+  resume(): Promise<void>
+  stop(): Promise<void>
+  delete(): Promise<void>
+  runCommand(request: SandboxCommandRequest): Promise<SandboxCommandHandle>
+  writeFiles(files: Array<{ path: string; contents: Uint8Array; mode?: number }>): Promise<void>
+  readFile(path: string): Promise<Uint8Array | null>
+  listFiles(path: string): Promise<SandboxFileEntry[]>
+  updateEnvironment(environment: Record<string, string>, unset?: string[]): Promise<void>
+  updateNetworkPolicy(policy: SandboxNetworkPolicy): Promise<void>
+  port(port: number): Promise<SandboxPort>
+  snapshot(options?: { expiresInMs?: number; /** Stable snapshot name, where the provider supports naming. */ name?: string }): Promise<SandboxSnapshot>
+  usage(): Promise<SandboxUsage>
+  /** Operator-only. Never serialize this value or expose it through Overlay's public API. */
+  rawProviderDiagnosticHandle(): unknown
+}
+
+export interface SandboxRuntime {
+  readonly provider: SandboxProviderId
+  readonly capabilities: SandboxCapabilities
+  create(request: SandboxCreateRequest): Promise<SandboxInstance>
+  /**
+   * Attach to an existing sandbox. `resume: false` returns the instance
+   * without waking a provider-stopped session — metering and cleanup paths
+   * use this so a read never restarts billable runtime.
+   */
+  reconnect(reference: string, options?: { resume?: boolean }): Promise<SandboxInstance>
+  restore(snapshotId: string, request: Omit<SandboxCreateRequest, 'snapshotId'>): Promise<SandboxInstance>
+  deleteSnapshot(snapshotId: string): Promise<void>
+}
+
+export type DesktopStreamMode = 'webrtc' | 'vnc' | 'other'
+
+/**
+ * A bearer-secret ticket for a live desktop stream. The URL is the credential:
+ * never log it, never persist it unredacted, and treat `expiresAt` as absent
+ * rather than infinite.
+ */
+export type DesktopStreamTicket =
+  | { ready: true; url: string; mode: DesktopStreamMode; expiresAt?: number }
+  | { ready: false }
+
+/**
+ * The GUI surface of a sandbox provider — present only when
+ * `capabilities.desktop` is true. This is the port "computers" (persistent
+ * cloud desktops) are built on; headless providers never implement it.
+ */
+export interface DesktopSandboxInstance extends SandboxInstance {
+  /**
+   * Issue a short-lived desktop stream URL. `ready: false` means the stream
+   * is still being prepared — poll again; it is not an error.
+   */
+  desktop(options?: {
+    mode?: Exclude<DesktopStreamMode, 'other'>
+    theme?: 'light' | 'dark'
+    publicAccess?: boolean
+  }): Promise<DesktopStreamTicket>
+  /** Provision a new machine cloned from this one's current snapshot. */
+  fork(request?: {
+    name?: string
+    environment?: Record<string, string>
+    resources?: SandboxResources
+    hardTimeoutMs?: number
+  }): Promise<SandboxInstance>
+}
+
+export function isDesktopSandboxInstance(value: SandboxInstance): value is DesktopSandboxInstance {
+  return value.capabilities.desktop === true
+}
+
+export const OVERLAY_AGENT_HOST_STATE_DIRECTORY = '/var/lib/overlay-agent-host'
+export const OVERLAY_AGENT_HOST_WORKSPACE = '/workspace'
+export const OVERLAY_MANAGED_ACP_ADAPTER_IDS = ['codex', 'claude-code'] as const
+export type OverlayManagedAcpAdapterId = (typeof OVERLAY_MANAGED_ACP_ADAPTER_IDS)[number]
+
+export function isOverlayManagedAcpAdapterId(value: unknown): value is OverlayManagedAcpAdapterId {
+  return typeof value === 'string'
+    && (OVERLAY_MANAGED_ACP_ADAPTER_IDS as readonly string[]).includes(value)
+}
+
+/** The same bootstrap is used for user-owned and managed hosts; only the surrounding machine differs. */
+export function managedAgentHostCommand(input: {
+  enrollmentCode: string
+  serverUrl: string
+  name: string
+  adapters?: OverlayManagedAcpAdapterId[]
+}): SandboxCommandRequest {
+  const adapters = input.adapters?.length ? input.adapters : ['codex', 'claude-code']
+  return {
+    command: 'overlay-agent-host',
+    args: [
+      'connect', input.enrollmentCode,
+      '--server', input.serverUrl,
+      '--state-dir', OVERLAY_AGENT_HOST_STATE_DIRECTORY,
+      '--name', input.name,
+      '--kind', 'overlay_cloud',
+      '--run',
+      ...adapters.flatMap((adapter) => ['--adapter', adapter]),
+    ],
+    cwd: OVERLAY_AGENT_HOST_WORKSPACE,
+    detached: true,
+    timeoutMs: 24 * 60 * 60_000,
+  }
+}

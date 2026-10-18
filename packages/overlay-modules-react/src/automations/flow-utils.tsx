@@ -106,7 +106,7 @@ export function AutomationFlowPreview({ flow }: { flow: ParsedAutomationFlow }) 
       viewBox={`0 0 ${width} ${height}`}
       role="img"
       aria-label="Automation flowchart preview"
-      className="h-auto min-w-[34rem] max-w-full text-[var(--foreground)]"
+      className="h-auto min-w-136 max-w-full text-(--foreground)"
     >
       <defs>
         <marker
@@ -129,6 +129,8 @@ export function AutomationFlowPreview({ flow }: { flow: ParsedAutomationFlow }) 
         const y1 = paddingY + fromIndex * (nodeHeight + gap) + nodeHeight
         const y2 = paddingY + toIndex * (nodeHeight + gap)
         return (
+          // Parallel edges can share a from/to pair — index is the discriminator.
+          // react-doctor-disable-next-line react-doctor/no-array-index-as-key
           <line
             key={`${edge.from}-${edge.to}-${index}`}
             x1={x}

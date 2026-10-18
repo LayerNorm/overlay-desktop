@@ -7,6 +7,10 @@ export interface Entitlements {
   budgetUsedCents?: number
   budgetTotalCents?: number
   budgetRemainingCents?: number
+  allowanceTotalCents?: number
+  allowanceUsedCents?: number
+  allowancePercentUsed?: number
+  topUpBalanceCents?: number
   autoTopUpEnabled?: boolean
   topUpAmountCents?: number
   autoTopUpAmountCents?: number
@@ -28,6 +32,8 @@ export interface Entitlements {
 
 export interface CheckoutArgs {
   userId: string
+  billingAccountId?: string
+  workspaceId?: string
   email?: string
   kind?: 'paid_plan' | 'budget_topup'
   planAmountCents?: number
@@ -51,6 +57,8 @@ export interface PortalResult {
 
 export interface PortalSessionArgs {
   userId: string
+  billingAccountId?: string
+  workspaceId?: string
   sessionId?: string
   email?: string
   returnUrl?: string
@@ -59,6 +67,8 @@ export interface PortalSessionArgs {
 export interface CheckoutSessionVerificationArgs {
   sessionId: string
   userId: string
+  billingAccountId?: string
+  workspaceId?: string
   kind: 'paid_plan' | 'budget_topup'
   allowLatestCompletedFallback?: boolean
 }

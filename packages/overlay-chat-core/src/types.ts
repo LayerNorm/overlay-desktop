@@ -63,6 +63,10 @@ export interface Entitlements {
   budgetUsedCents?: number
   budgetTotalCents?: number
   budgetRemainingCents?: number
+  allowanceTotalCents?: number
+  allowanceUsedCents?: number
+  allowancePercentUsed?: number
+  topUpBalanceCents?: number
   autoTopUpEnabled?: boolean
   topUpAmountCents?: number
   autoTopUpAmountCents?: number
@@ -118,16 +122,30 @@ export interface ChatMessageMention {
   fileIds?: string[]
 }
 
-export type SourceCitationMap = Record<
-  string,
-  { kind: 'file' | 'memory'; sourceId: string }
->
+export type SourceCitation = {
+  kind: 'file' | 'memory'
+  sourceId: string
+  /** Human label for the source chip / panel row. */
+  title?: string
+  /** Short excerpt shown under the title in the sources panel. */
+  snippet?: string
+}
+
+export type SourceCitationMap = Record<string, SourceCitation>
 
 export interface WebSourceItem {
   url: string
   title: string
   snippet?: string
-  origin: 'web-search' | 'browser'
+  origin: 'web-search' | 'browser' | 'knowledge'
+  /**
+   * In-app route for knowledge sources (a file, note, or memory). Present only
+   * when `origin === 'knowledge'`; those have no external URL, so renderers
+   * link here instead of opening a new tab.
+   */
+  internalHref?: string
+  /** Which internal resource this is — drives the icon and the row subtitle. */
+  internalKind?: 'file' | 'memory' | 'message'
 }
 
 export interface ChatMessageMetadata {
@@ -189,13 +207,6 @@ export type ServerConversationMessage = {
   replyToTurnId?: string
   replySnippet?: string
   routedModelId?: string
-}
-
-export type LiveMessageDelta = {
-  _id: string
-  messageId: string
-  textDelta?: string
-  newParts?: Array<Record<string, unknown>>
 }
 
 export interface GenerationResult {
@@ -278,6 +289,8 @@ export interface VideoModel {
   defaultAspectRatio?: string
 }
 
+export type ReasoningLevel = 'provider-default' | 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+
 export interface ChatModelPreferences {
   modelId?: string
   askModelIds?: string[]
@@ -285,6 +298,8 @@ export interface ChatModelPreferences {
   imageModelId?: string
   videoModelId?: string
   generationMode?: GenerationMode
+  /** v7: reasoning effort level for reasoning-capable models. */
+  reasoning?: ReasoningLevel
 }
 
 export type BrowserScope = 'active-tab' | 'current-window'

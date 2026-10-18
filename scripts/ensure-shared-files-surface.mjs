@@ -85,8 +85,5 @@ const build = fs.readFileSync(files.build, 'utf8')
 if (!build.includes("publicDir: resolve('public')")) {
   throw new Error('Desktop must package the canonical web file-kind assets')
 }
-if (!build.includes("'@overlay/modules-react/projects'")) {
-  throw new Error('Desktop must resolve the shared project file browser entrypoint')
-}
 
 console.log('Desktop shared files surface guard passed.')

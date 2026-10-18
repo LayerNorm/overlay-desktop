@@ -36,6 +36,7 @@ test('file methods preserve route paths, methods, queries, and JSON bodies', asy
   await client.files.shareResponse({ fileId: 'file_1', visibility: 'public' })
   await client.files.searchTextResponse({ fileIds: ['file_1'], query: 'alpha' })
   await client.files.getResponse({ limit: 100, summary: true })
+  await client.files.getPage({ cursor: 'cursor_1', limit: 25, summary: true })
 
   assert.equal(String(calls[0]!.input), 'https://example.test/api/v1/files/upload-url')
   assert.equal(calls[0]!.init?.method, 'POST')
@@ -61,9 +62,13 @@ test('file methods preserve route paths, methods, queries, and JSON bodies', asy
 
   assert.equal(String(calls[4]!.input), 'https://example.test/api/v1/files?limit=100&summary=true')
   assert.equal(calls[4]!.init?.method, undefined)
+  assert.equal(
+    String(calls[5]!.input),
+    'https://example.test/api/v1/files?cursor=cursor_1&limit=25&summary=true&page=true',
+  )
 })
 
-test('file mutations accept null parent and project IDs', async () => {
+test('file mutations accept null parent IDs', async () => {
   const { calls, client } = createRecordedClient()
 
   await client.files.createResponse({
@@ -71,12 +76,10 @@ test('file mutations accept null parent and project IDs', async () => {
     type: 'folder',
     kind: 'folder',
     parentId: null,
-    projectId: null,
   })
   await client.files.updateResponse({
     fileId: 'folder_1',
     parentId: null,
-    projectId: null,
   })
 
   assert.equal(calls.length, 2)
@@ -85,19 +88,121 @@ test('file mutations accept null parent and project IDs', async () => {
     type: 'folder',
     kind: 'folder',
     parentId: null,
-    projectId: null,
   })
   assert.deepEqual(await jsonBody(calls[1]!), {
     fileId: 'folder_1',
     parentId: null,
-    projectId: null,
+  })
+})
+
+test('conversation participant removal uses the scoped participant endpoint', async () => {
+  const { calls, client } = createRecordedClient()
+
+  await client.conversations.removeParticipant('conversation_1', 'principal_1')
+
+  assert.equal(
+    String(calls[0]!.input),
+    'https://example.test/api/v1/conversations/conversation_1/participants',
+  )
+  assert.equal(calls[0]!.init?.method, 'DELETE')
+  assert.deepEqual(await jsonBody(calls[0]!), { principalId: 'principal_1' })
+})
+
+test('workspace direct-message creation sends the visible workspace scope', async () => {
+  const { calls, client } = createRecordedClient()
+
+  await client.conversations.createWorkspaceDirectMessage('workspace_personal', {
+    principalIds: ['agent_hermes'],
+  })
+
+  assert.equal(String(calls[0]!.input), 'https://example.test/api/v1/conversations/direct-messages')
+  assert.equal(calls[0]!.init?.method, 'POST')
+  assert.equal(new Headers(calls[0]!.init?.headers).get('x-overlay-workspace-id'), 'workspace_personal')
+  assert.deepEqual(await jsonBody(calls[0]!), { principalIds: ['agent_hermes'] })
+})
+
+test('workspace channel creation sends the visible workspace scope', async () => {
+  const { calls, client } = createRecordedClient()
+
+  await client.conversations.createWorkspaceChannel('workspace_personal', {
+    name: 'hermes-qa',
+    visibility: 'private',
+    principalIds: ['agent_hermes'],
+  })
+
+  assert.equal(String(calls[0]!.input), 'https://example.test/api/v1/conversations/channels')
+  assert.equal(calls[0]!.init?.method, 'POST')
+  assert.equal(new Headers(calls[0]!.init?.headers).get('x-overlay-workspace-id'), 'workspace_personal')
+  assert.deepEqual(await jsonBody(calls[0]!), {
+    name: 'hermes-qa',
+    visibility: 'private',
+    principalIds: ['agent_hermes'],
+  })
+})
+
+test('current AgentRun lookup uses the conversation run endpoint', async () => {
+  const { calls, client } = createRecordedClient()
+
+  await client.conversations.currentRun('conversation_1')
+
+  assert.equal(
+    String(calls[0]!.input),
+    'https://example.test/api/v1/conversations/run?conversationId=conversation_1',
+  )
+  assert.equal(calls[0]!.init?.method, undefined)
+})
+
+test('AgentRun approval posts the immutable run and approval token', async () => {
+  const { calls, client } = createRecordedClient()
+
+  await client.conversations.submitRunApproval({
+    conversationId: 'conversation_1',
+    agentRunId: 'run_1',
+    token: 'approval_1',
+    approved: true,
+  })
+
+  assert.equal(
+    String(calls[0]!.input),
+    'https://example.test/api/v1/conversations/run/approval',
+  )
+  assert.equal(calls[0]!.init?.method, 'POST')
+  assert.deepEqual(await jsonBody(calls[0]!), {
+    conversationId: 'conversation_1',
+    agentRunId: 'run_1',
+    token: 'approval_1',
+    approved: true,
+  })
+})
+
+test('AgentRun metrics expose runner observations and browser lifecycle events', async () => {
+  const { calls, client } = createRecordedClient()
+
+  await client.conversations.runMetrics({ from: 100, to: 200, limit: 50 })
+  await client.conversations.recordRunMetricEvent({
+    conversationId: 'conversation_1',
+    agentRunId: 'run_1',
+    event: 'browser_disconnected',
+  }, { keepalive: true })
+
+  assert.equal(
+    String(calls[0]!.input),
+    'https://example.test/api/v1/conversations/run/metrics?from=100&to=200&limit=50',
+  )
+  assert.equal(String(calls[1]!.input), 'https://example.test/api/v1/conversations/run/metrics-event')
+  assert.equal(calls[1]!.init?.method, 'POST')
+  assert.equal(calls[1]!.init?.keepalive, true)
+  assert.deepEqual(await jsonBody(calls[1]!), {
+    conversationId: 'conversation_1',
+    agentRunId: 'run_1',
+    event: 'browser_disconnected',
   })
 })
 
 test('module feature methods use canonical app endpoints', async () => {
   const { calls, client } = createRecordedClient()
 
-  await client.conversations.streamAuthResponse({ conversationId: 'conv_1' })
+  await client.conversations.getResponse({ conversationId: 'conv_1' })
   await client.conversations.actResponse({ conversationId: 'conv_1', messages: [] })
   await client.conversations.extensionPlanResponse({ prompt: 'Plan this' })
   await client.chat.browserTaskResponse({ task: 'Open the docs' })
@@ -112,7 +217,6 @@ test('module feature methods use canonical app endpoints', async () => {
     noteTitle: 'Untitled',
     message: 'summarize this',
   })
-  await client.projects.getResponse({ projectId: 'proj_1', includeDeleted: true, updatedSince: 123 })
   await client.integrations.connectResponse({ toolkit: 'github' })
   await client.skills.deleteResponse({ skillId: 'skill_1' })
   await client.mcpServers.testResponse({ url: 'https://mcp.example.test', transport: 'streamable-http' })
@@ -120,9 +224,8 @@ test('module feature methods use canonical app endpoints', async () => {
   await client.automations.testResponse({ automationId: 'auto_1' })
   await client.automations.getRuns('auto_1')
 
-  assert.equal(String(calls[0]!.input), 'https://example.test/api/v1/conversations/stream-auth')
-  assert.equal(calls[0]!.init?.method, 'POST')
-  assert.deepEqual(await jsonBody(calls[0]!), { conversationId: 'conv_1' })
+  assert.equal(String(calls[0]!.input), 'https://example.test/api/v1/conversations?conversationId=conv_1')
+  assert.equal(calls[0]!.init?.method, undefined)
 
   assert.equal(String(calls[1]!.input), 'https://example.test/api/v1/conversations/act')
   assert.equal(calls[1]!.init?.method, 'POST')
@@ -159,31 +262,26 @@ test('module feature methods use canonical app endpoints', async () => {
   assert.equal(String(calls[10]!.input), 'https://example.test/api/v1/notebook-agent')
   assert.equal(calls[10]!.init?.method, 'POST')
 
-  assert.equal(
-    String(calls[11]!.input),
-    'https://example.test/api/v1/projects?projectId=proj_1&includeDeleted=true&updatedSince=123',
-  )
+  assert.equal(String(calls[11]!.input), 'https://example.test/api/v1/integrations')
+  assert.equal(calls[11]!.init?.method, 'POST')
+  assert.deepEqual(await jsonBody(calls[11]!), { toolkit: 'github', action: 'connect' })
 
-  assert.equal(String(calls[12]!.input), 'https://example.test/api/v1/integrations')
-  assert.equal(calls[12]!.init?.method, 'POST')
-  assert.deepEqual(await jsonBody(calls[12]!), { toolkit: 'github', action: 'connect' })
+  assert.equal(String(calls[12]!.input), 'https://example.test/api/v1/skills?skillId=skill_1')
+  assert.equal(calls[12]!.init?.method, 'DELETE')
 
-  assert.equal(String(calls[13]!.input), 'https://example.test/api/v1/skills?skillId=skill_1')
-  assert.equal(calls[13]!.init?.method, 'DELETE')
+  assert.equal(String(calls[13]!.input), 'https://example.test/api/v1/mcps/test')
+  assert.equal(calls[13]!.init?.method, 'POST')
 
-  assert.equal(String(calls[14]!.input), 'https://example.test/api/v1/mcps/test')
-  assert.equal(calls[14]!.init?.method, 'POST')
+  assert.equal(String(calls[14]!.input), 'https://example.test/api/v1/automations')
+  assert.equal(calls[14]!.init?.method, 'PATCH')
+  assert.deepEqual(await jsonBody(calls[14]!), { automationId: 'auto_1', name: 'Renamed' })
 
-  assert.equal(String(calls[15]!.input), 'https://example.test/api/v1/automations')
-  assert.equal(calls[15]!.init?.method, 'PATCH')
-  assert.deepEqual(await jsonBody(calls[15]!), { automationId: 'auto_1', name: 'Renamed' })
-
-  assert.equal(String(calls[16]!.input), 'https://example.test/api/v1/automations/test')
-  assert.equal(calls[16]!.init?.method, 'POST')
-  assert.deepEqual(await jsonBody(calls[16]!), { automationId: 'auto_1' })
+  assert.equal(String(calls[15]!.input), 'https://example.test/api/v1/automations/test')
+  assert.equal(calls[15]!.init?.method, 'POST')
+  assert.deepEqual(await jsonBody(calls[15]!), { automationId: 'auto_1' })
 
   assert.equal(
-    String(calls[17]!.input),
+    String(calls[16]!.input),
     'https://example.test/api/v1/automations?automationId=auto_1&includeRuns=true',
   )
 })
@@ -201,6 +299,37 @@ test('automation run history unwraps the standardized paginated envelope', async
   const runs = await client.automations.getRuns('auto_1')
 
   assert.deepEqual(runs, [{ _id: 'run_1', status: 'completed', scheduledFor: 123 }])
+})
+
+test('JSON helpers reject HTTP errors instead of treating error payloads as resource data', async () => {
+  const client = createOverlayAppClient({
+    baseUrl: 'https://example.test',
+    fetch: async () => Response.json({ error: 'Forbidden' }, { status: 403 }),
+  })
+
+  await assert.rejects(
+    client.sharing.get({
+      workspaceId: 'workspace_acme',
+      resourceType: 'conversation',
+      resourceId: 'conversation_product',
+    }),
+    /Forbidden/,
+  )
+})
+
+test('JSON helpers explain rate limits and include the retry window', async () => {
+  const client = createOverlayAppClient({
+    baseUrl: 'https://example.test',
+    fetch: async () => Response.json(
+      { error: 'Too many requests', retryAfterSeconds: 565 },
+      { status: 429, headers: { 'Retry-After': '565' } },
+    ),
+  })
+
+  await assert.rejects(
+    client.conversations.createChannel({ name: 'qa', visibility: 'public' }),
+    /Too many requests\. This account has reached its temporary request limit\. Try again in 9 minutes 25 seconds\./,
+  )
 })
 
 test('webhook helpers unwrap standardized lists and parse mutation payloads', async () => {
@@ -257,11 +386,11 @@ test('list helpers unwrap paginated envelopes while getPage preserves metadata',
     },
   })
 
-  const list = await client.projects.get<Array<{ _id: string; name: string }>>({ limit: 1, sort: 'name', order: 'asc' })
+  const list = await client.files.get<Array<{ _id: string; name: string }>>({ limit: 1, sort: 'name', order: 'asc' })
   assert.deepEqual(list, [{ _id: 'proj_1', name: 'Alpha', createdAt: 1, updatedAt: 2 }])
-  assert.equal(String(calls[0]!.input), 'https://example.test/api/v1/projects?limit=1&sort=name&order=asc')
+  assert.equal(String(calls[0]!.input), 'https://example.test/api/v1/files?limit=1&sort=name&order=asc')
 
-  const page = await client.projects.getPage<{ _id: string; name: string }>({ cursor: 'next' })
+  const page = await client.files.getPage<{ _id: string; name: string }>({ cursor: 'next' })
   assert.equal(page.hasMore, true)
   assert.equal(page.nextCursor, 'next')
   assert.deepEqual(page.data, [{ _id: 'proj_1', name: 'Alpha', createdAt: 1, updatedAt: 2 }])
@@ -284,7 +413,14 @@ test('settings and account methods preserve billing/auth route contracts', async
     grantOffSessionConsent: true,
   })
   await client.topUps.historyResponse()
-  await client.topUps.checkoutResponse({ amountCents: 1200, autoTopUpEnabled: true, returnPath: '/account' })
+  await client.topUps.checkoutResponse({
+    acceptedLegalTerms: true,
+    amountCents: 1200,
+    autoTopUpEnabled: true,
+    privacyVersion: '2026-08-28',
+    returnPath: '/account',
+    termsVersion: '2026-08-28',
+  })
   await client.topUps.verifyResponse({ sessionId: 'cs_topup' })
 
   assert.equal(String(calls[0]!.input), 'https://example.test/api/entitlements')
@@ -321,9 +457,12 @@ test('settings and account methods preserve billing/auth route contracts', async
   assert.equal(String(calls[6]!.input), 'https://example.test/api/topups/checkout')
   assert.equal(calls[6]!.init?.method, 'POST')
   assert.deepEqual(await jsonBody(calls[6]!), {
+    acceptedLegalTerms: true,
     amountCents: 1200,
     autoTopUpEnabled: true,
+    privacyVersion: '2026-08-28',
     returnPath: '/account',
+    termsVersion: '2026-08-28',
   })
 
   assert.equal(String(calls[7]!.input), 'https://example.test/api/topups/verify')
@@ -348,4 +487,40 @@ test('mutation helpers send Idempotency-Key when idempotencyKey is set', async (
   assert.equal(new Headers(calls[0]!.init?.headers).get('Idempotency-Key'), key)
   assert.equal(new Headers(calls[1]!.init?.headers).get('Idempotency-Key'), 'turn-t1')
   assert.equal(new Headers(calls[2]!.init?.headers).get('Idempotency-Key'), 'file-1')
+})
+
+test('work methods hit the work routes with the right methods, encoded ids, queries, and bodies', async () => {
+  const { calls, client } = createRecordedClient()
+
+  await client.work.list({ view: 'workspace' })
+  await client.work.list()
+  await client.work.context()
+  await client.work.get('item/1')
+  await client.work.create({ title: 'Ship it', scope: 'workspace', dueDate: '2026-03-01' })
+  await client.work.update('item_1', { status: 'review', assigneePrincipalId: null })
+  await client.work.move('item_1', { status: 'done', afterId: 'item_2', beforeId: null })
+  await client.work.events('item_1')
+  await client.work.addComment('item_1', { body: 'Looks good' })
+  await client.scope.archive('work', 'item_1')
+  await client.work.remove('item_1')
+
+  const seen = calls.map((call) => `${call.init?.method ?? 'GET'} ${String(call.input)}`)
+  assert.deepEqual(seen, [
+    'GET https://example.test/api/v1/work?view=workspace',
+    'GET https://example.test/api/v1/work',
+    'GET https://example.test/api/v1/work/context',
+    'GET https://example.test/api/v1/work/item%2F1',
+    'POST https://example.test/api/v1/work',
+    'PATCH https://example.test/api/v1/work/item_1',
+    'POST https://example.test/api/v1/work/item_1/move',
+    'GET https://example.test/api/v1/work/item_1/events',
+    'POST https://example.test/api/v1/work/item_1/events',
+    'POST https://example.test/api/v1/scope',
+    'DELETE https://example.test/api/v1/work/item_1',
+  ])
+  assert.deepEqual(await jsonBody(calls[4]!), { title: 'Ship it', scope: 'workspace', dueDate: '2026-03-01' })
+  assert.deepEqual(await jsonBody(calls[5]!), { status: 'review', assigneePrincipalId: null })
+  assert.deepEqual(await jsonBody(calls[6]!), { status: 'done', afterId: 'item_2', beforeId: null })
+  assert.deepEqual(await jsonBody(calls[8]!), { body: 'Looks good' })
+  assert.deepEqual(await jsonBody(calls[9]!), { resource: 'work', id: 'item_1', action: 'archive' })
 })

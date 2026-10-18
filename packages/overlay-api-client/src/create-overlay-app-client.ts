@@ -2,10 +2,17 @@ import { AccountClient } from './auth/account-client'
 import { BillingClient } from './auth/billing-client'
 import { SubscriptionClient } from './auth/subscription-client'
 import { TopUpsClient } from './auth/topups-client'
+import { AgentsClient } from './agents/client'
+import { AgentEnvironmentsClient } from './agent-environments/client'
 import { AutomationRunsClient } from './automation-runs/client'
 import { AutomationsClient } from './automations/client'
 import { BootstrapClient } from './bootstrap/client'
 import { ChatAuxClient } from './chat/chat-aux-client'
+import { ComputersClient } from './computers/client'
+import { ProviderAccountsClient } from './provider-accounts/client'
+import { AgentProfilesClient } from './agent-profiles/client'
+import { CloudAgentsClient } from './cloud-agents/client'
+import { McpAccessClient } from './mcp-access/client'
 import { ConversationsClient } from './chat/conversations-client'
 import { DiscoveryClient } from './discovery/client'
 import { FilesClient } from './files/client'
@@ -15,10 +22,14 @@ import { MemoryClient } from './memory/client'
 import { NotesClient } from './notes/client'
 import { OnboardingClient } from './onboarding/client'
 import { OutputsClient } from './outputs/client'
-import { ProjectsClient } from './projects/client'
+import { ScopeClient } from './scope/client'
 import { SettingsClient } from './settings/client'
+import { SharingClient } from './sharing/client'
 import { SkillsClient } from './skills/client'
+import { SurfacesClient } from './surfaces/client'
 import { WebhooksClient } from './webhooks/client'
+import { WorkClient } from './work/client'
+import { WorkspacesClient } from './workspaces/client'
 import { createHttpContext } from './shared/http'
 import type { CreateOverlayAppClientOptions } from './shared/types'
 
@@ -35,9 +46,9 @@ export function createOverlayAppClient(options: CreateOverlayAppClientOptions = 
     memory: new MemoryClient(http),
     outputs: new OutputsClient(http),
     notes: new NotesClient(http),
-    projects: new ProjectsClient(http),
     integrations: new IntegrationsClient(http),
     skills: new SkillsClient(http),
+    scope: new ScopeClient(http),
     mcpServers: new McpServersClient(http),
     automations: new AutomationsClient(http),
     settings: new SettingsClient(http),
@@ -49,6 +60,17 @@ export function createOverlayAppClient(options: CreateOverlayAppClientOptions = 
     chat: new ChatAuxClient(http),
     automationRuns: new AutomationRunsClient(http),
     webhooks: new WebhooksClient(http),
+    sharing: new SharingClient(http),
+    workspaces: new WorkspacesClient(http),
+    agents: new AgentsClient(http),
+    agentEnvironments: new AgentEnvironmentsClient(http),
+    computers: new ComputersClient(http),
+    providerAccounts: new ProviderAccountsClient(http),
+    cloudAgents: new CloudAgentsClient(http),
+    agentProfiles: new AgentProfilesClient(http),
+    mcpAccess: new McpAccessClient(http),
+    surfaces: new SurfacesClient(http),
+    work: new WorkClient(http),
   }
 }
 

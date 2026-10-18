@@ -43,7 +43,6 @@ type RemoteConversation = {
   askModelIds?: string[]
   actModelId?: string
   lastMode?: 'ask' | 'act'
-  projectId?: string
   deletedAt?: number
 }
 
@@ -359,8 +358,7 @@ function remoteConversationToMeta(remote: RemoteConversation | CachedChat): Chat
     title: remote.title || 'New Chat',
     createdAt: remote.createdAt,
     updatedAt: remote.updatedAt || remote.lastModified || remote.createdAt,
-    isAgent: remote.lastMode === 'act',
-    projectId: remote.projectId
+    isAgent: remote.lastMode === 'act'
   }
 }
 
@@ -369,7 +367,6 @@ function remoteConversationToChat(remote: RemoteConversation, messages: Message[
     ...remoteConversationToMeta(remote),
     messages,
     modelId: remote.actModelId || remote.askModelIds?.[0],
-    folderId: remote.projectId,
     isAgent: remote.lastMode === 'act'
   }
 }
@@ -813,7 +810,6 @@ export async function createNewChat(
     method: 'POST',
     body: JSON.stringify({
       title,
-      projectId: folderId,
       askModelIds: modelId ? [modelId] : undefined,
       actModelId: modelId,
       lastMode: isAgent ? 'act' : 'ask'
@@ -826,8 +822,7 @@ export async function createNewChat(
     updatedAt: Date.now(),
     askModelIds: modelId ? [modelId] : undefined,
     actModelId: modelId,
-    lastMode: isAgent ? 'act' : 'ask',
-    projectId: folderId
+    lastMode: isAgent ? 'act' : 'ask'
   }
   const chat = remoteConversationToChat(remote, [])
   chatCache.set(chat.id, chat)
@@ -903,7 +898,6 @@ async function patchConversationIfChanged(chat: Chat): Promise<void> {
       body: JSON.stringify({
         conversationId: chat.id,
         title: chat.title,
-        projectId: chat.folderId,
         askModelIds: chat.modelId ? [chat.modelId] : undefined,
         actModelId: chat.modelId,
         lastMode: chat.isAgent ? 'act' : 'ask'

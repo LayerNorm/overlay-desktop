@@ -9,27 +9,30 @@ export const OnboardingMutationRequest = z.object({
   ...AuthFields,
 }).passthrough()
 
-export const DaytonaRunRequest = z.object({
-  ...AuthFields,
-  code: z.string().optional(),
-  command: z.string().optional(),
-}).passthrough()
-
 export const BrowserTaskRequest = z.object({
   ...AuthFields,
   task: z.string().optional(),
 }).passthrough()
 
+/** Which slice of a scoped resource to list. Omitted means everything active the caller can see. */
+export const ResourceViewQuery = z.enum(['personal', 'workspace', 'archived']).optional()
+
 export const EntityListQuery = PaginationQuery.extend({
-  projectId: z.string().optional(),
   skillId: z.string().optional(),
   mcpServerId: z.string().optional(),
+  view: ResourceViewQuery,
+})
+
+export const ScopeActionRequest = z.object({
+  resource: z.enum(['files', 'skills', 'mcp-servers', 'connectors', 'automations', 'work']),
+  id: z.string().min(1),
+  action: z.enum(['move', 'archive', 'restore']),
+  to: z.enum(['personal', 'workspace']).optional(),
 })
 
 export const EntityMutationRequest = z.object({
   ...AuthFields,
   name: z.string().optional(),
-  projectId: z.string().optional(),
 }).passthrough()
 
 export const EntityDeleteRequest = z.object({
@@ -42,6 +45,18 @@ export const McpTestRequest = z.object({
   ...AuthFields,
   mcpServerId: z.string().optional(),
 }).passthrough()
+
+export const McpOAuthStartRequest = z.object({
+  mcpServerId: z.string().min(1),
+  /** Same-origin relative path; the route re-validates before using it as a redirect target. */
+  returnTo: z.string().optional(),
+  scope: z.string().optional(),
+  surface: z.enum(['web', 'desktop']).optional(),
+}).passthrough()
+
+export const McpOAuthDisconnectRequest = z.object({
+  mcpServerId: z.string().min(1),
+})
 
 export const TranscribeRequest = FormDataBoundary
 export const EmptyJsonRequest = EmptyRequest

@@ -4,7 +4,6 @@ export interface CapabilityCheck {
   memory: boolean
   knowledge: boolean
   integrations: boolean
-  projects: boolean
   skills: boolean
   mcpServers: boolean
   browserUse: boolean
@@ -20,6 +19,12 @@ export interface CapabilityCheck {
   vectorSearch: boolean
   automations: boolean
   multiTenant: boolean
+  connectedAgents: boolean
+  computers: boolean
+  /** Agents (Claude Code, Codex) on Overlay Cloud machines. */
+  cloudAgents: boolean
+  /** Work: tasks as a list, board and timeline. */
+  work: boolean
 }
 
 export type OverlayCapability = keyof CapabilityCheck
@@ -30,7 +35,6 @@ export const DEFAULT_OVERLAY_CAPABILITIES: CapabilityCheck = {
   memory: true,
   knowledge: true,
   integrations: true,
-  projects: true,
   skills: true,
   mcpServers: true,
   browserUse: true,
@@ -46,6 +50,10 @@ export const DEFAULT_OVERLAY_CAPABILITIES: CapabilityCheck = {
   vectorSearch: true,
   automations: true,
   multiTenant: false,
+  connectedAgents: false,
+  computers: false,
+  cloudAgents: false,
+  work: false,
 }
 
 export function deriveOverlayCapabilities(

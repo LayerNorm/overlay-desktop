@@ -197,8 +197,8 @@ describe('environment-service health', () => {
     const { validateRoots } = await import('./environment-service')
     expect(validateRoots('').error).toMatch('at least one')
     expect(validateRoots('relative/path').error).toMatch('absolute')
-    expect(validateRoots('/Users/you/Projects\n/tmp/work')).toEqual({
-      roots: ['/Users/you/Projects', '/tmp/work'],
+    expect(validateRoots('/opt/agent-projects\n/tmp/work')).toEqual({
+      roots: ['/opt/agent-projects', '/tmp/work'],
       error: null
     })
   })
@@ -332,14 +332,14 @@ describe('environment-service health', () => {
     expect(JSON.parse(createCall[0].body)).toEqual({ adapterId: 'codex' })
 
     bridgeJsonResponse({ environment: { id: 'environment-1' } })
-    await service.approveEnvironment('environment-1', ['/Users/you/Projects'])
+    await service.approveEnvironment('environment-1', ['/opt/agent-projects'])
     const approveCall = bridgeState.request.mock.calls[1] as unknown as [
       { path: string; method: string; body: string }
     ]
     expect(approveCall[0].path).toBe('/api/v1/agent-environments/environment-1/approve')
     expect(approveCall[0].method).toBe('POST')
     expect(JSON.parse(approveCall[0].body)).toEqual({
-      filesystemGrant: { mode: 'selected_roots', roots: ['/Users/you/Projects'] }
+      filesystemGrant: { mode: 'selected_roots', roots: ['/opt/agent-projects'] }
     })
 
     bridgeJsonResponse({})

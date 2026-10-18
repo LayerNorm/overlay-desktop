@@ -4,6 +4,7 @@ import {
   DEFAULT_OVERLAY_FEATURE_MODULES,
   DEFAULT_OVERLAY_NAVIGATION,
   DEFAULT_OVERLAY_SETTINGS_PANELS,
+  DEFAULT_OVERLAY_SETTINGS_SECTIONS,
   DEFAULT_OVERLAY_SIDEBAR_ACTIONS,
   resolveOverlayAppShellConfig,
   resolveFeatureModuleForPath,
@@ -13,7 +14,7 @@ import {
 test('resolveOverlayAppShellConfig merges registry overrides by id', () => {
   const shell = resolveOverlayAppShellConfig({
     navigation: [
-      { ...DEFAULT_OVERLAY_NAVIGATION[0]!, label: 'Assistant' },
+      { ...DEFAULT_OVERLAY_NAVIGATION.find((item) => item.id === 'chat')!, label: 'Assistant' },
       { id: 'admin', href: '/app/admin', label: 'Admin', icon: 'shield-check' },
     ],
     settingsPanels: [
@@ -38,6 +39,15 @@ test('resolveOverlayAppShellConfig merges registry overrides by id', () => {
   assert.equal(shell.sidebarActions.find((item) => item.id === 'admin.invite')?.routePatterns[0], '/app/admin')
 })
 
+test('Work is the default home and first primary navigation item, followed by Agents', () => {
+  const shell = resolveOverlayAppShellConfig()
+
+  assert.equal(shell.brand.homeHref, '/app/work')
+  assert.equal(DEFAULT_OVERLAY_NAVIGATION[0]?.id, 'work')
+  assert.equal(DEFAULT_OVERLAY_NAVIGATION[1]?.id, 'agents')
+  assert.equal(DEFAULT_OVERLAY_NAVIGATION[2]?.id, 'chat')
+})
+
 test('resolveOverlayAppShellConfig filters disabled feature registries', () => {
   const shell = resolveOverlayAppShellConfig({
     featureFlags: [{ id: 'knowledge', label: 'Knowledge', enabled: false }],
@@ -52,7 +62,20 @@ test('resolveOverlayAppShellConfig filters disabled feature registries', () => {
 test('sidebar registries resolve feature modules and actions from routes', () => {
   const shell = resolveOverlayAppShellConfig()
 
-  assert.equal(resolveFeatureModuleForPath('/app/projects/child', shell.featureModules)?.id, 'projects')
+  assert.equal(resolveFeatureModuleForPath('/app/files/sub', shell.featureModules)?.id, 'files-knowledge')
   assert.equal(resolveSidebarActionForPath('/app/notes', shell.sidebarActions)?.actionKey, 'notes.create')
   assert.equal(resolveSidebarActionForPath('/app/settings', shell.sidebarActions), null)
+  assert.equal(DEFAULT_OVERLAY_SETTINGS_SECTIONS.find((item) => item.id === 'agent-environments')?.label, 'Environments')
+  assert.equal(DEFAULT_OVERLAY_SETTINGS_PANELS.find((item) => item.id === 'agent-environments')?.label, 'Environments')
+})
+
+test('Work leads the navigation and appears only when the work capability is on', () => {
+  const on = resolveOverlayAppShellConfig(undefined, { capabilities: { work: true } })
+  assert.equal(on.navigation[0]?.id, 'work')
+  const work = on.navigation.find((item) => item.id === 'work')
+  assert.equal(work?.href, '/app/work')
+  assert.deepEqual(work?.subviews, ['list', 'board', 'timeline'])
+  // Off by default: the flag keeps it out of the sidebar, the mobile drawer, and the Alt+N shortcuts.
+  const off = resolveOverlayAppShellConfig()
+  assert.equal(off.navigation.some((item) => item.id === 'work'), false)
 })

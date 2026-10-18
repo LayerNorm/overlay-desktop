@@ -30,7 +30,7 @@ export function ExtensionCatalog({
 }: ExtensionCatalogProps) {
   const visibleItems = activeKind === 'all' ? items : items.filter((item) => item.kind === activeKind)
 
-  if (loading) return <div className="p-4 text-xs text-[var(--muted)]">Loading extensions...</div>
+  if (loading) return <div className="p-4 text-xs text-(--muted)">Loading extensions...</div>
   if (visibleItems.length === 0) return <EmptyState className="h-full min-h-48" title="No extensions found" />
 
   return (
@@ -44,7 +44,7 @@ export function ExtensionCatalog({
           <article
             key={`${item.kind}:${itemKey}`}
             className={cn(
-              'rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3',
+              'rounded-lg border border-(--border) bg-(--surface-elevated) p-3',
               disabledByPolicy ? 'opacity-60' : '',
             )}
           >
@@ -60,7 +60,7 @@ export function ExtensionCatalog({
                   <Badge variant="muted">{item.kind}</Badge>
                 </div>
                 {description ? (
-                  <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--muted)]">{description}</p>
+                  <p className="mt-2 line-clamp-2 text-xs leading-5 text-(--muted)">{description}</p>
                 ) : null}
               </button>
               {item.kind === 'skill' && onToggleSkill ? (
@@ -81,16 +81,22 @@ export function ExtensionCatalog({
   )
 }
 
+function IntegrationStatusBadge({ isConnected }: { isConnected?: boolean }) {
+  return <Badge variant={isConnected ? 'success' : 'muted'}>{isConnected ? 'Connected' : 'Available'}</Badge>
+}
+
+function SkillStatusBadge({ enabled }: { enabled: boolean }) {
+  return <Badge variant={enabled ? 'success' : 'muted'}>{enabled ? 'On' : 'Off'}</Badge>
+}
+
+function McpStatusBadge({ enabled }: { enabled: boolean }) {
+  return <Badge variant={enabled ? 'success' : 'muted'}>{enabled ? 'On' : 'Off'}</Badge>
+}
+
 function StatusBadge({ item, disabledByPolicy }: { item: ExtensionCatalogItem; disabledByPolicy: boolean }) {
   if (disabledByPolicy) return <Badge variant="warning">Policy gated</Badge>
-  if (item.kind === 'integration') {
-    return <Badge variant={item.isConnected ? 'success' : 'muted'}>{item.isConnected ? 'Connected' : 'Available'}</Badge>
-  }
-  if (item.kind === 'skill') {
-    return <Badge variant={item.enabled === false ? 'muted' : 'success'}>{item.enabled === false ? 'Off' : 'On'}</Badge>
-  }
-  if (item.kind === 'mcp') {
-    return <Badge variant={item.enabled ? 'success' : 'muted'}>{item.enabled ? 'On' : 'Off'}</Badge>
-  }
+  if (item.kind === 'integration') return <IntegrationStatusBadge isConnected={item.isConnected} />
+  if (item.kind === 'skill') return <SkillStatusBadge enabled={item.enabled !== false} />
+  if (item.kind === 'mcp') return <McpStatusBadge enabled={item.enabled} />
   return <Badge variant="muted">{item.kind === 'modelProvider' ? 'Provider' : 'Registered'}</Badge>
 }

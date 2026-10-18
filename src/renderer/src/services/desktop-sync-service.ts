@@ -6,15 +6,8 @@ import {
   upsertChatReplica,
   CHATS_CHANGED_EVENT
 } from '../utils/chatStorage'
-import {
-  deleteProject,
-  loadProjects,
-  type Project,
-  upsertProjectReplica,
-  PROJECTS_CHANGED_EVENT
-} from '../utils/projectStorage'
 import { loadAuthSessionSecure, type AuthSession } from './auth-service'
-import { desktopAppResponse } from './app-api-client'
+import { desktopAppResponse, unwrapPaginatedData } from './app-api-client'
 
 const SYNC_STATE_KEY = 'overlay-desktop-sync-state-v1'
 const DEFAULT_SYNC_INTERVAL_MS = 30_000
@@ -23,7 +16,7 @@ const SYNC_STATUS_EVENT = 'overlay:sync-status'
 const MEMORIES_CHANGED_EVENT = 'overlay:memories-changed'
 const KNOWLEDGE_AUTHORITY_KEY = 'overlay-desktop-knowledge-authority-v1'
 
-type SyncEntity = 'projects' | 'conversations' | 'notes' | 'memories'
+type SyncEntity = 'conversations' | 'notes' | 'memories'
 type QueueAction = 'upsert' | 'delete'
 
 interface SyncQueueItem {
@@ -45,7 +38,6 @@ interface EntitySyncBucket {
 }
 
 interface SyncWatermarks {
-  projects: number
   conversations: number
   notes: number
   memories: number
@@ -66,10 +58,6 @@ interface StoredSyncState {
   buckets: Record<SyncEntity, EntitySyncBucket>
   watermarks: SyncWatermarks
   status: SyncStatus
-}
-
-interface LocalProjectSnapshot extends Project {
-  updatedAt: number
 }
 
 interface LocalNoteSnapshot {
@@ -94,22 +82,10 @@ interface LocalMemorySnapshot {
   updatedAt: number
 }
 
-type RemoteProject = {
-  _id: string
-  clientId?: string
-  name: string
-  instructions?: string
-  parentId?: string | null
-  createdAt: number
-  updatedAt: number
-  deletedAt?: number
-}
-
 type RemoteConversation = {
   _id: string
   clientId?: string
   title: string
-  projectId?: string
   askModelIds: string[]
   actModelId: string
   lastMode: 'ask' | 'act'
@@ -150,7 +126,6 @@ type RemoteNote = {
   updatedAt: number
   createdAt: number
   deletedAt?: number
-  projectId?: string
 }
 
 type RemoteMemory = {
@@ -160,7 +135,6 @@ type RemoteMemory = {
   source: 'chat' | 'note' | 'manual'
   type?: 'preference' | 'fact' | 'project' | 'decision' | 'agent'
   importance?: number
-  projectId?: string
   conversationId?: string
   noteId?: string
   messageId?: string
@@ -177,13 +151,11 @@ function defaultState(): StoredSyncState {
   return {
     queue: [],
     buckets: {
-      projects: { byLocalId: {} },
       conversations: { byLocalId: {} },
       notes: { byLocalId: {} },
       memories: { byLocalId: {} }
     },
     watermarks: {
-      projects: 0,
       conversations: 0,
       notes: 0,
       memories: 0
@@ -201,9 +173,17 @@ function readState(): StoredSyncState {
   try {
     const raw = localStorage.getItem(SYNC_STATE_KEY)
     if (!raw) return defaultState()
+    const stored = JSON.parse(raw) as StoredSyncState & {
+      buckets?: Record<string, EntitySyncBucket>
+      watermarks?: Record<string, number>
+    }
+    // Server projects were retired upstream; drop their stale sync bookkeeping
+    // so it is never re-persisted.
+    if (stored.buckets) delete stored.buckets.projects
+    if (stored.watermarks) delete stored.watermarks.projects
     return {
       ...defaultState(),
-      ...JSON.parse(raw)
+      ...stored
     } as StoredSyncState
   } catch {
     return defaultState()
@@ -441,7 +421,6 @@ class DesktopSyncService {
   }
 
   private async scanLocalChanges(state: StoredSyncState): Promise<StoredSyncState> {
-    this.scanProjectChanges(state)
     // Phase 1 cloud chat migration: conversations are cloud-authoritative through
     // chatStorage's web API repository, not this legacy local-first sync queue.
     if (localStorage.getItem(KNOWLEDGE_AUTHORITY_KEY) === 'cloud') {
@@ -450,33 +429,6 @@ class DesktopSyncService {
     await this.scanMemoryChanges(state)
     writeState(state)
     return state
-  }
-
-  private scanProjectChanges(state: StoredSyncState): void {
-    const current = new Map<string, LocalProjectSnapshot>()
-    for (const project of loadProjects()) {
-      current.set(project.id, project)
-      const meta = state.buckets.projects.byLocalId[project.id]
-      if (!meta || project.updatedAt > (meta.syncedLocalUpdatedAt ?? 0)) {
-        this.queueOperation(state, {
-          entity: 'projects',
-          action: 'upsert',
-          localId: project.id,
-          queuedAt: Date.now()
-        })
-      }
-    }
-
-    for (const localId of Object.keys(state.buckets.projects.byLocalId)) {
-      if (!current.has(localId)) {
-        this.queueOperation(state, {
-          entity: 'projects',
-          action: 'delete',
-          localId,
-          queuedAt: Date.now()
-        })
-      }
-    }
   }
 
   private scanConversationChanges(state: StoredSyncState): void {
@@ -593,10 +545,9 @@ class DesktopSyncService {
 
   private sortQueue(queue: SyncQueueItem[]): SyncQueueItem[] {
     const order: Record<SyncEntity, number> = {
-      projects: 0,
-      conversations: 1,
-      notes: 2,
-      memories: 3
+      conversations: 0,
+      notes: 1,
+      memories: 2
     }
     return [...queue].sort((a, b) => {
       if (order[a.entity] !== order[b.entity]) return order[a.entity] - order[b.entity]
@@ -628,10 +579,6 @@ class DesktopSyncService {
     session: AuthSession
   ): Promise<void> {
     switch (item.entity) {
-      case 'projects':
-        if (item.action === 'delete') await this.pushProjectDelete(state, item.localId, session)
-        else await this.pushProjectUpsert(state, item.localId, session)
-        return
       case 'conversations':
         delete state.buckets.conversations.byLocalId[item.localId]
         return
@@ -658,75 +605,10 @@ class DesktopSyncService {
         ...(init.headers || {})
       }
     })
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status} ${path}`)
+    }
     return (await response.json()) as T
-  }
-
-  private async pushProjectUpsert(
-    state: StoredSyncState,
-    localId: string,
-    session: AuthSession
-  ): Promise<void> {
-    const project = loadProjects().find((entry) => entry.id === localId)
-    if (!project) return
-
-    const meta = state.buckets.projects.byLocalId[localId] || {}
-    const remoteParentId = project.parentId
-      ? state.buckets.projects.byLocalId[project.parentId]?.remoteId
-      : undefined
-
-    if (meta.remoteId) {
-      await this.authenticatedFetch(
-        '/api/v1/projects',
-        {
-          method: 'PATCH',
-          body: JSON.stringify({
-            projectId: meta.remoteId,
-            name: project.name,
-            instructions: project.instructions,
-            parentId: remoteParentId ?? null,
-            userId: session.user.id
-          })
-        },
-        session
-      )
-    } else {
-      const created = await this.authenticatedFetch<{ id: string }>(
-        '/api/v1/projects',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            clientId: localId,
-            name: project.name,
-            instructions: project.instructions,
-            parentId: remoteParentId ?? null,
-            userId: session.user.id
-          })
-        },
-        session
-      )
-      meta.remoteId = created.id
-    }
-
-    meta.syncedLocalUpdatedAt = project.updatedAt
-    state.buckets.projects.byLocalId[localId] = meta
-  }
-
-  private async pushProjectDelete(
-    state: StoredSyncState,
-    localId: string,
-    session: AuthSession
-  ): Promise<void> {
-    const meta = state.buckets.projects.byLocalId[localId]
-    if (!meta?.remoteId) {
-      delete state.buckets.projects.byLocalId[localId]
-      return
-    }
-    await this.authenticatedFetch(
-      `/api/v1/projects?projectId=${encodeURIComponent(meta.remoteId)}`,
-      { method: 'DELETE' },
-      session
-    )
-    delete state.buckets.projects.byLocalId[localId]
   }
 
   private async pushConversationUpsert(
@@ -738,9 +620,6 @@ class DesktopSyncService {
     if (!chat) return
 
     const meta = state.buckets.conversations.byLocalId[localId] || {}
-    const remoteProjectId = chat.folderId
-      ? state.buckets.projects.byLocalId[chat.folderId]?.remoteId
-      : undefined
 
     if (meta.remoteId) {
       await this.authenticatedFetch(
@@ -750,7 +629,6 @@ class DesktopSyncService {
           body: JSON.stringify({
             conversationId: meta.remoteId,
             title: chat.title,
-            projectId: remoteProjectId ?? null,
             askModelIds: chat.modelId ? [chat.modelId] : undefined,
             actModelId: chat.modelId,
             lastMode: chat.isAgent ? 'act' : 'ask',
@@ -767,7 +645,6 @@ class DesktopSyncService {
           body: JSON.stringify({
             clientId: chat.id,
             title: chat.title,
-            projectId: remoteProjectId ?? null,
             askModelIds: chat.modelId ? [chat.modelId] : undefined,
             actModelId: chat.modelId,
             lastMode: chat.isAgent ? 'act' : 'ask',
@@ -935,9 +812,6 @@ class DesktopSyncService {
     const remoteConversationId = memory.source.chatId
       ? state.buckets.conversations.byLocalId[memory.source.chatId]?.remoteId
       : undefined
-    const remoteProjectId = memory.source.folderId
-      ? state.buckets.projects.byLocalId[memory.source.folderId]?.remoteId
-      : undefined
 
     if (meta.remoteId) {
       await this.authenticatedFetch(
@@ -950,7 +824,6 @@ class DesktopSyncService {
             type: memory.type,
             importance: memory.importance,
             conversationId: remoteConversationId,
-            projectId: remoteProjectId,
             messageId: memory.source.messageId,
             userId: session.user.id
           })
@@ -969,7 +842,6 @@ class DesktopSyncService {
             type: memory.type,
             importance: memory.importance,
             conversationId: remoteConversationId,
-            projectId: remoteProjectId,
             messageId: memory.source.messageId,
             userId: session.user.id
           })
@@ -1005,7 +877,6 @@ class DesktopSyncService {
     state: StoredSyncState,
     session: AuthSession
   ): Promise<StoredSyncState> {
-    await this.pullProjects(state, session)
     // Conversations are hydrated directly by the cloud chat repository.
     if (localStorage.getItem(KNOWLEDGE_AUTHORITY_KEY) === 'cloud') {
       await this.pullNotes(state, session)
@@ -1015,65 +886,12 @@ class DesktopSyncService {
     return state
   }
 
-  private async pullProjects(state: StoredSyncState, session: AuthSession): Promise<void> {
-    const remoteProjects = await this.authenticatedFetch<RemoteProject[]>(
-      `/api/v1/projects?updatedSince=${state.watermarks.projects}&includeDeleted=true`,
-      { method: 'GET' },
-      session
-    )
-
-    if (remoteProjects.length === 0) return
-
-    const remoteToLocal = new Map<string, string>()
-    for (const remote of remoteProjects) {
-      const localId =
-        remote.clientId ||
-        this.findLocalIdByRemoteId(state.buckets.projects, remote._id) ||
-        `project-remote-${remote._id}`
-      remoteToLocal.set(remote._id, localId)
-      state.buckets.projects.byLocalId[localId] = {
-        ...state.buckets.projects.byLocalId[localId],
-        remoteId: remote._id,
-        lastKnownRemoteUpdatedAt: remote.updatedAt
-      }
-    }
-
-    for (const remote of remoteProjects) {
-      const localId = remoteToLocal.get(remote._id)!
-      if (remote.deletedAt) {
-        deleteProject(localId)
-        delete state.buckets.projects.byLocalId[localId]
-        continue
-      }
-
-      upsertProjectReplica({
-        id: localId,
-        name: remote.name,
-        parentId: remote.parentId ? (remoteToLocal.get(remote.parentId) ?? null) : null,
-        instructions: remote.instructions,
-        createdAt: remote.createdAt,
-        updatedAt: remote.updatedAt
-      })
-      state.buckets.projects.byLocalId[localId] = {
-        ...state.buckets.projects.byLocalId[localId],
-        remoteId: remote._id,
-        syncedLocalUpdatedAt: remote.updatedAt,
-        lastKnownRemoteUpdatedAt: remote.updatedAt
-      }
-    }
-
-    state.watermarks.projects = Math.max(
-      state.watermarks.projects,
-      ...remoteProjects.map((project) => project.updatedAt)
-    )
-  }
-
   private async pullConversations(state: StoredSyncState, session: AuthSession): Promise<void> {
-    const remoteConversations = await this.authenticatedFetch<RemoteConversation[]>(
+    const remoteConversations = unwrapPaginatedData<RemoteConversation>(await this.authenticatedFetch<unknown>(
       `/api/v1/conversations?updatedSince=${state.watermarks.conversations}&includeDeleted=true`,
       { method: 'GET' },
       session
-    )
+    ))
 
     for (const remote of remoteConversations) {
       const localId =
@@ -1094,9 +912,6 @@ class DesktopSyncService {
         { method: 'GET' },
         session
       )
-      const localProjectId = remote.projectId
-        ? this.findLocalIdByRemoteId(state.buckets.projects, remote.projectId)
-        : null
       const existing = loadChat(localId)
 
       upsertChatReplica({
@@ -1104,7 +919,6 @@ class DesktopSyncService {
         title: remote.title,
         createdAt: existing?.createdAt || remote.createdAt,
         updatedAt: remote.updatedAt,
-        folderId: localProjectId || undefined,
         modelId: remote.actModelId || remote.askModelIds[0],
         isAgent: remote.lastMode === 'act',
         messages: (messageResponse.messages || []).map(toLocalMessage)
@@ -1128,11 +942,11 @@ class DesktopSyncService {
   }
 
   private async pullNotes(state: StoredSyncState, session: AuthSession): Promise<void> {
-    const remoteNotes = await this.authenticatedFetch<RemoteNote[]>(
+    const remoteNotes = unwrapPaginatedData<RemoteNote>(await this.authenticatedFetch<unknown>(
       `/api/v1/notes?updatedSince=${state.watermarks.notes}&includeDeleted=true`,
       { method: 'GET' },
       session
-    )
+    ))
 
     for (const remote of remoteNotes) {
       const localId =
@@ -1168,11 +982,11 @@ class DesktopSyncService {
   }
 
   private async pullMemories(state: StoredSyncState, session: AuthSession): Promise<void> {
-    const remoteMemories = await this.authenticatedFetch<RemoteMemory[]>(
+    const remoteMemories = unwrapPaginatedData<RemoteMemory>(await this.authenticatedFetch<unknown>(
       `/api/v1/memory?raw=true&updatedSince=${state.watermarks.memories}&includeDeleted=true`,
       { method: 'GET' },
       session
-    )
+    ))
 
     const existingLocalIds = new Set(
       ((await window.bridge.memory.getAll()) as Array<{ id: string }>).map((memory) => memory.id)
@@ -1196,10 +1010,6 @@ class DesktopSyncService {
       const localChatId = remote.conversationId
         ? this.findLocalIdByRemoteId(state.buckets.conversations, remote.conversationId) || ''
         : ''
-      const localFolderId = remote.projectId
-        ? this.findLocalIdByRemoteId(state.buckets.projects, remote.projectId) || undefined
-        : undefined
-
       if (!existingLocalIds.has(localId)) {
         await window.bridge.memory.add({
           id: localId,
@@ -1209,7 +1019,6 @@ class DesktopSyncService {
           source: {
             chatId: localChatId,
             messageId: remote.messageId,
-            folderId: localFolderId,
             noteId: remote.noteId
           },
           sourceType: remote.source,
@@ -1227,7 +1036,6 @@ class DesktopSyncService {
           source: {
             chatId: localChatId,
             messageId: remote.messageId,
-            folderId: localFolderId,
             noteId: remote.noteId
           },
           sourceType: remote.source,
@@ -1296,4 +1104,4 @@ export function getLocalIdForRemoteNote(remoteId: string): string | undefined {
   return entries.find(([, metadata]) => metadata.remoteId === remoteId)?.[0]
 }
 
-export { CHATS_CHANGED_EVENT, MEMORIES_CHANGED_EVENT, PROJECTS_CHANGED_EVENT, SYNC_STATUS_EVENT }
+export { CHATS_CHANGED_EVENT, MEMORIES_CHANGED_EVENT, SYNC_STATUS_EVENT }

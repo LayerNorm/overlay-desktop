@@ -1,20 +1,15 @@
 'use client'
 
-import type React from 'react'
+import React, { createContext, useContext, type ReactNode } from 'react'
 import {
   ArrowLeft,
-  BookOpen,
   ChevronRight,
-  Files,
-  FileText,
   FolderInput,
   FolderOpen,
-  Images,
   LayoutGrid,
   LayoutList,
   Plus,
   RefreshCw,
-  Search,
   SquareMousePointer,
   Trash2,
 } from 'lucide-react'
@@ -24,49 +19,56 @@ import type {
   KnowledgeTab as Tab,
 } from '@overlay/app-core'
 import { AppScreenHeader } from '@overlay/modules-react/shell'
+import { HeaderSearch } from '@overlay/ui/primitives'
+import { KnowledgeRowActionsContext } from './file-views'
 import { FilesCreateUploadControls, OutputFilterMenu } from './toolbar-menus'
 
 const TOOLBAR_ICON_BUTTON_CLASS =
-  'inline-flex h-8 min-h-8 w-8 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--muted)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]'
+  'inline-flex h-8 min-h-8 w-8 items-center justify-center rounded-md border border-(--border) bg-(--surface-elevated) text-(--muted) transition-colors hover:bg-(--surface-subtle) hover:text-(--foreground)'
 
 const TOOLBAR_FILLED_BUTTON_CLASS =
-  'inline-flex h-8 min-h-8 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-subtle)] px-2.5 py-0 text-xs leading-none text-[var(--foreground)] transition-colors hover:bg-[var(--border)]'
+  'inline-flex h-8 min-h-8 items-center gap-1.5 rounded-md border border-(--border) bg-(--surface-subtle) px-2.5 py-0 text-xs leading-none text-(--foreground) transition-colors hover:bg-(--border)'
 
 type KnowledgeLayout = 'list' | 'cards'
 type FilesCategory = 'all' | 'notes' | 'files' | 'outputs'
 
 function SelectedFileHeader({
+  file,
   fileTitle,
   isSavingFile,
   onClose,
   onTitleChange,
 }: {
+  file: FileNode
   fileTitle: string
   isSavingFile: boolean
   onClose: () => void
   onTitleChange: (value: string) => void
 }) {
+  const renderRowActions = useContext(KnowledgeRowActionsContext)
   return (
     <>
       <button
         type="button"
         onClick={onClose}
         title="Back to files"
-        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--muted)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]"
+        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-(--muted) transition-colors hover:bg-(--surface-subtle) hover:text-(--foreground)"
       >
         <ArrowLeft size={17} />
       </button>
       <input
         type="text"
+        aria-label="File title"
         value={fileTitle}
         onChange={(e) => onTitleChange(e.target.value)}
         placeholder="File title..."
-        className="min-w-0 flex-1 bg-transparent font-medium text-xl text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]"
+        className="min-w-0 flex-1 bg-transparent font-medium text-xl text-(--foreground) outline-hidden placeholder:text-(--muted)"
         style={{ fontFamily: 'var(--font-serif)' }}
       />
       {isSavingFile ? (
-        <span className="shrink-0 text-[11px] text-[var(--muted-light)]">Saving...</span>
+        <span className="shrink-0 text-[11px] text-(--muted-light)">Saving...</span>
       ) : null}
+      {renderRowActions ? <span className="flex shrink-0 items-center">{renderRowActions(file)}</span> : null}
     </>
   )
 }
@@ -103,29 +105,29 @@ function FolderHeader({
           moveFileToParent(fileId, activeFolder.parentId)
         }}
         title={activeFolder.parentId ? 'Back to parent folder' : 'Back to all files'}
-        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--muted)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]"
+        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-(--muted) transition-colors hover:bg-(--surface-subtle) hover:text-(--foreground)"
       >
         <ArrowLeft size={17} />
       </button>
-      <FolderOpen size={18} className="shrink-0 text-[var(--muted-light)]" />
+      <FolderOpen size={18} className="shrink-0 text-(--muted-light)" />
       <nav aria-label="Folder breadcrumbs" className="flex min-w-0 items-center gap-1 truncate text-sm">
         <button
           type="button"
           onClick={() => navigateToFolder(null)}
-          className="shrink-0 text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
+          className="shrink-0 text-(--muted) transition-colors hover:text-(--foreground)"
         >
           Files
         </button>
         {folderBreadcrumb.map((node, i) => (
           <span key={node._id} className="flex min-w-0 items-center gap-1">
-            <ChevronRight size={12} className="shrink-0 text-[var(--muted-light)]" />
+            <ChevronRight size={12} className="shrink-0 text-(--muted-light)" />
             {i === folderBreadcrumb.length - 1 ? (
-              <span aria-current="page" className="truncate font-medium text-[var(--foreground)]">{node.name}</span>
+              <span aria-current="page" className="truncate font-medium text-(--foreground)">{node.name}</span>
             ) : (
               <button
                 type="button"
                 onClick={() => navigateToFolder(node._id)}
-                className="truncate text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
+                className="truncate text-(--muted) transition-colors hover:text-(--foreground)"
               >
                 {node.name}
               </button>
@@ -134,7 +136,7 @@ function FolderHeader({
         ))}
       </nav>
       {!memorySearchOpen && (
-        <span className="shrink-0 text-xs text-[var(--muted-light)]">{itemCount} items</span>
+        <span className="shrink-0 text-xs text-(--muted-light)">{itemCount} items</span>
       )}
     </div>
   )
@@ -165,11 +167,11 @@ function HeaderTitle({
           : 'Files'
   return (
     <div className="flex min-w-0 shrink-0 items-center gap-3">
-      <h1 className="text-sm font-medium text-[var(--foreground)]">
+      <h1 className="text-sm font-medium text-(--foreground)">
         {mode === 'files' ? filesTitle : activeTab === 'memories' ? 'Memories' : activeTab === 'files' ? 'Files' : 'Outputs'}
       </h1>
       {activeTab !== 'outputs' && !memorySearchOpen && (
-        <span className="text-xs text-[var(--muted-light)]">
+        <span className="text-xs text-(--muted-light)">
           {activeTab === 'memories' ? memoryCount : fileCount} items
         </span>
       )}
@@ -202,6 +204,8 @@ function BulkSelectControls({
   selectedMemoryCount: number
   selectedOutputCount: number
 }) {
+  const renderBulkActions = useContext(KnowledgeBulkActionsContext)
+  const bulkSelection = useContext(KnowledgeBulkSelectionContext)
   if (activeTab !== 'memories' && activeTab !== 'files' && activeTab !== 'outputs') return null
   const selectedCount =
     activeTab === 'memories'
@@ -229,6 +233,7 @@ function BulkSelectControls({
       <button type="button" onClick={onExitSelectMode} className={TOOLBAR_FILLED_BUTTON_CLASS}>
         Cancel
       </button>
+      {activeTab === 'files' && bulkSelection && selectedCount > 0 ? renderBulkActions?.(bulkSelection) : null}
       <button
         type="button"
         disabled={bulkDeleting || selectedCount === 0}
@@ -254,7 +259,7 @@ function LayoutControls({
   onUpdateQuery: (updates: Record<string, string | null | undefined>) => void
 }) {
   return (
-    <div className="flex h-8 min-h-8 items-center rounded-md border border-[var(--border)] bg-[var(--surface-muted)] p-0.5">
+    <div className="flex h-8 min-h-8 items-center rounded-md border border-(--border) bg-(--surface-muted) p-0.5">
       <button
         type="button"
         title="List"
@@ -263,8 +268,8 @@ function LayoutControls({
         onClick={() => onUpdateQuery({ layout: 'list' })}
         className={`inline-flex h-7 items-center rounded px-2 transition-colors ${
           layout === 'list'
-            ? 'bg-[var(--surface-elevated)] text-[var(--foreground)] shadow-sm'
-            : 'text-[var(--muted-light)] hover:text-[var(--foreground)]'
+            ? 'bg-(--surface-elevated) text-(--foreground) shadow-xs'
+            : 'text-(--muted-light) hover:text-(--foreground)'
         }`}
       >
         <LayoutList size={14} strokeWidth={1.75} />
@@ -277,8 +282,8 @@ function LayoutControls({
         onClick={() => onUpdateQuery({ layout: 'cards' })}
         className={`inline-flex h-7 items-center rounded px-2 transition-colors ${
           layout === 'cards'
-            ? 'bg-[var(--surface-elevated)] text-[var(--foreground)] shadow-sm'
-            : 'text-[var(--muted-light)] hover:text-[var(--foreground)]'
+            ? 'bg-(--surface-elevated) text-(--foreground) shadow-xs'
+            : 'text-(--muted-light) hover:text-(--foreground)'
         }`}
       >
         <LayoutGrid size={14} strokeWidth={1.75} />
@@ -287,45 +292,285 @@ function LayoutControls({
   )
 }
 
-const FILES_CATEGORY_ITEMS: Array<{
-  id: FilesCategory
-  label: string
-  Icon: typeof BookOpen
-}> = [
-  { id: 'all', label: 'All', Icon: Files },
-  { id: 'notes', label: 'Notes', Icon: BookOpen },
-  { id: 'files', label: 'Files', Icon: FileText },
-  { id: 'outputs', label: 'Outputs', Icon: Images },
-]
-
-function FilesCategoryControls({
-  category,
-  onChange,
+function HeaderSearchForTab({
+  activeTab,
+  fileSearchOpen,
+  fileSearchQuery,
+  memorySearchOpen,
+  memorySearchQuery,
+  onSetFileSearchOpen,
+  onSetFileSearchQuery,
+  onSetMemorySearchOpen,
+  onSetMemorySearchQuery,
 }: {
-  category: FilesCategory
-  onChange: (category: FilesCategory) => void
+  activeTab: Tab
+  fileSearchOpen: boolean
+  fileSearchQuery: string
+  memorySearchOpen: boolean
+  memorySearchQuery: string
+  onSetFileSearchOpen: (value: boolean | ((value: boolean) => boolean)) => void
+  onSetFileSearchQuery: (value: string) => void
+  onSetMemorySearchOpen: (value: boolean | ((value: boolean) => boolean)) => void
+  onSetMemorySearchQuery: (value: string) => void
+}) {
+  if (activeTab === 'files') {
+    return (
+      <HeaderSearch
+        value={fileSearchQuery}
+        onChange={onSetFileSearchQuery}
+        open={fileSearchOpen}
+        onOpenChange={onSetFileSearchOpen}
+        label="Search files"
+        placeholder="Search files…"
+      />
+    )
+  }
+  if (activeTab === 'memories') {
+    return (
+      <HeaderSearch
+        value={memorySearchQuery}
+        onChange={onSetMemorySearchQuery}
+        open={memorySearchOpen}
+        onOpenChange={onSetMemorySearchOpen}
+        label="Search memories"
+        placeholder="Search memories…"
+      />
+    )
+  }
+  return null
+}
+
+/**
+ * Whether the person may add files here. A host that shows a place where nothing can be added (an archive, or a
+ * workspace whose admin restricted creating) provides `false` and the create and upload controls are left out.
+ */
+export const KnowledgeCreateAccessContext = createContext(true)
+
+/** The files selected in select mode, and what to call once they have left this list. */
+export interface KnowledgeBulkSelection {
+  nodes: readonly FileNode[]
+  afterChange: () => void
+}
+
+export const KnowledgeBulkSelectionContext = createContext<KnowledgeBulkSelection | null>(null)
+
+/**
+ * Extra bulk controls shown beside Delete in select mode (the web app adds Move and Archive, which depend on who is
+ * viewing). Absent means none.
+ */
+export const KnowledgeBulkActionsContext = createContext<((selection: KnowledgeBulkSelection) => ReactNode) | null>(null)
+
+function TabActionControls({
+  activeTab,
+  activeFolder,
+  createMenuOpen,
+  createMenuRef,
+  fileUploadRef,
+  folderUploadRef,
+  mode,
+  onCreateNoteFile,
+  onImportMemory,
+  onNewMemory,
+  onPickFile,
+  onPickFolder,
+  setCreateMenuOpen,
+  setDialog,
+  setDialogName,
+  setUploadMenuOpen,
+  uploadMenuOpen,
+  uploadMenuRef,
+}: {
+  activeTab: Tab
+  activeFolder: FileNode | null
+  createMenuOpen: boolean
+  createMenuRef: React.RefObject<HTMLDivElement | null>
+  fileUploadRef: React.RefObject<HTMLInputElement | null>
+  folderUploadRef: React.RefObject<HTMLInputElement | null>
+  mode: 'knowledge' | 'files'
+  onCreateNoteFile: () => void
+  onImportMemory: () => void
+  onNewMemory: () => void
+  onPickFile?: () => void
+  onPickFolder?: () => void
+  setCreateMenuOpen: (value: boolean | ((value: boolean) => boolean)) => void
+  setDialog: (value: { type: 'file' | 'folder'; parentId: string | null } | null) => void
+  setDialogName: (value: string) => void
+  setUploadMenuOpen: (value: boolean | ((value: boolean) => boolean)) => void
+  uploadMenuOpen: boolean
+  uploadMenuRef: React.RefObject<HTMLDivElement | null>
+}) {
+  const canCreate = useContext(KnowledgeCreateAccessContext)
+  if (activeTab === 'memories') {
+    return (
+      <>
+        <button type="button" onClick={onImportMemory} className={TOOLBAR_FILLED_BUTTON_CLASS}>
+          <FolderInput size={13} />
+          Import
+        </button>
+        <button type="button" onClick={onNewMemory} className={TOOLBAR_FILLED_BUTTON_CLASS}>
+          <Plus size={13} />
+          New Memory
+        </button>
+      </>
+    )
+  }
+  if (activeTab === 'files') {
+    if (!canCreate) return null
+    return (
+      <FilesCreateUploadControls
+        activeFolder={activeFolder}
+        createMenuOpen={createMenuOpen}
+        createMenuRef={createMenuRef}
+        fileUploadRef={fileUploadRef}
+        folderUploadRef={folderUploadRef}
+        mode={mode}
+        onCreateNoteFile={onCreateNoteFile}
+        onPickFile={onPickFile}
+        onPickFolder={onPickFolder}
+        setCreateMenuOpen={setCreateMenuOpen}
+        setDialog={setDialog}
+        setDialogName={setDialogName}
+        setUploadMenuOpen={setUploadMenuOpen}
+        uploadMenuOpen={uploadMenuOpen}
+        uploadMenuRef={uploadMenuRef}
+      />
+    )
+  }
+  return null
+}
+
+function TabToolbar({
+  activeFolder,
+  activeTab,
+  bulkDeleting,
+  createMenuOpen,
+  createMenuRef,
+  fileUploadRef,
+  folderUploadRef,
+  layout,
+  mode,
+  onBulkDeleteFiles,
+  onBulkDeleteMemories,
+  onBulkDeleteOutputs,
+  onCommitOutputFilter,
+  onCreateNoteFile,
+  onExitSelectMode,
+  onImportMemory,
+  onNewMemory,
+  onPickFile,
+  onPickFolder,
+  onRefreshOutputs,
+  onSetSelectMode,
+  onUpdateQuery,
+  outputFilter,
+  outputFilterOpen,
+  outputFilterRef,
+  selectMode,
+  selectedFileCount,
+  selectedMemoryCount,
+  selectedOutputCount,
+  setCreateMenuOpen,
+  setDialog,
+  setDialogName,
+  setOutputFilterOpen,
+  setUploadMenuOpen,
+  uploadMenuOpen,
+  uploadMenuRef,
+}: {
+  activeFolder: FileNode | null
+  activeTab: Tab
+  bulkDeleting: boolean
+  createMenuOpen: boolean
+  createMenuRef: React.RefObject<HTMLDivElement | null>
+  fileUploadRef: React.RefObject<HTMLInputElement | null>
+  folderUploadRef: React.RefObject<HTMLInputElement | null>
+  layout: KnowledgeLayout
+  mode: 'knowledge' | 'files'
+  onBulkDeleteFiles: () => void
+  onBulkDeleteMemories: () => void
+  onBulkDeleteOutputs: () => void
+  onCommitOutputFilter: (filter: OutputFilter) => void
+  onCreateNoteFile: () => void
+  onExitSelectMode: () => void
+  onImportMemory: () => void
+  onNewMemory: () => void
+  onPickFile?: () => void
+  onPickFolder?: () => void
+  onRefreshOutputs: () => void
+  onSetSelectMode: (value: boolean) => void
+  onUpdateQuery: (updates: Record<string, string | null | undefined>) => void
+  outputFilter: OutputFilter
+  outputFilterOpen: boolean
+  outputFilterRef: React.RefObject<HTMLDivElement | null>
+  selectMode: boolean
+  selectedFileCount: number
+  selectedMemoryCount: number
+  selectedOutputCount: number
+  setCreateMenuOpen: (value: boolean | ((value: boolean) => boolean)) => void
+  setDialog: (value: { type: 'file' | 'folder'; parentId: string | null } | null) => void
+  setDialogName: (value: string) => void
+  setOutputFilterOpen: (value: boolean | ((value: boolean) => boolean)) => void
+  setUploadMenuOpen: (value: boolean | ((value: boolean) => boolean)) => void
+  uploadMenuOpen: boolean
+  uploadMenuRef: React.RefObject<HTMLDivElement | null>
 }) {
   return (
-    <div className="flex h-8 min-h-8 items-center rounded-md border border-[var(--border)] bg-[var(--surface-muted)] p-0.5">
-      {FILES_CATEGORY_ITEMS.map(({ id, label, Icon }) => {
-        const active = category === id
-        return (
-          <button
-            type="button"
-            key={id}
-            onClick={() => onChange(id)}
-            aria-current={active ? 'page' : undefined}
-            className={`inline-flex h-7 items-center gap-1.5 rounded px-2 text-[11px] font-medium transition-colors ${
-              active
-                ? 'bg-[var(--surface-elevated)] text-[var(--foreground)] shadow-sm'
-                : 'text-[var(--muted)] hover:text-[var(--foreground)]'
-            }`}
-          >
-            <Icon size={12} strokeWidth={1.75} />
-            <span className="hidden sm:inline">{label}</span>
-          </button>
-        )
-      })}
+    <div className="flex max-w-full shrink-0 items-center gap-2 overflow-x-auto scrollbar-none max-sm:order-2 max-sm:w-full sm:ml-auto sm:w-auto sm:overflow-visible [&::-webkit-scrollbar]:hidden">
+      <BulkSelectControls
+        activeTab={activeTab}
+        bulkDeleting={bulkDeleting}
+        onBulkDeleteFiles={onBulkDeleteFiles}
+        onBulkDeleteMemories={onBulkDeleteMemories}
+        onBulkDeleteOutputs={onBulkDeleteOutputs}
+        onExitSelectMode={onExitSelectMode}
+        onSetSelectMode={onSetSelectMode}
+        selectMode={selectMode}
+        selectedFileCount={selectedFileCount}
+        selectedMemoryCount={selectedMemoryCount}
+        selectedOutputCount={selectedOutputCount}
+      />
+      {activeTab === 'outputs' ? (
+        <OutputFilterMenu
+          onCommit={onCommitOutputFilter}
+          open={outputFilterOpen}
+          outputFilter={outputFilter}
+          outputFilterRef={outputFilterRef}
+          setOpen={setOutputFilterOpen}
+        />
+      ) : null}
+      {(activeTab === 'memories' || activeTab === 'files' || activeTab === 'outputs') ? (
+        <LayoutControls layout={layout} onUpdateQuery={onUpdateQuery} />
+      ) : null}
+      {activeTab === 'outputs' ? (
+        <button
+          type="button"
+          title="Refresh"
+          onClick={onRefreshOutputs}
+          className={TOOLBAR_ICON_BUTTON_CLASS}
+        >
+          <RefreshCw size={14} strokeWidth={1.75} />
+        </button>
+      ) : null}
+      <TabActionControls
+        activeTab={activeTab}
+        activeFolder={activeFolder}
+        createMenuOpen={createMenuOpen}
+        createMenuRef={createMenuRef}
+        fileUploadRef={fileUploadRef}
+        folderUploadRef={folderUploadRef}
+        mode={mode}
+        onCreateNoteFile={onCreateNoteFile}
+        onImportMemory={onImportMemory}
+        onNewMemory={onNewMemory}
+        onPickFile={onPickFile}
+        onPickFolder={onPickFolder}
+        setCreateMenuOpen={setCreateMenuOpen}
+        setDialog={setDialog}
+        setDialogName={setDialogName}
+        setUploadMenuOpen={setUploadMenuOpen}
+        uploadMenuOpen={uploadMenuOpen}
+        uploadMenuRef={uploadMenuRef}
+      />
     </div>
   )
 }
@@ -446,10 +691,11 @@ export function KnowledgeViewHeader({
   onCommitOutputFilter: (filter: OutputFilter) => void
 }) {
   return (
-    <AppScreenHeader className="px-3 py-2.5 sm:px-6">
+    <AppScreenHeader>
       <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
       {selectedFile ? (
         <SelectedFileHeader
+          file={selectedFile}
           fileTitle={fileTitle}
           isSavingFile={isSavingFile}
           onClose={onCloseFile}
@@ -476,125 +722,55 @@ export function KnowledgeViewHeader({
               mode={mode}
             />
           )}
-          {activeTab === 'files' && fileSearchOpen ? (
-            <input
-              value={fileSearchQuery}
-              onChange={(e) => onSetFileSearchQuery(e.target.value)}
-              placeholder="Search files…"
-              aria-label="Search files"
-              autoFocus
-              className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-1.5 text-xs text-[var(--foreground)] outline-none placeholder:text-[var(--muted-light)] focus:border-[var(--muted)] max-sm:order-3 max-sm:w-full max-sm:flex-none"
-            />
-          ) : activeTab === 'memories' && memorySearchOpen ? (
-            <input
-              value={memorySearchQuery}
-              onChange={(e) => onSetMemorySearchQuery(e.target.value)}
-              placeholder="Search memories…"
-              autoFocus
-              className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-1.5 text-xs text-[var(--foreground)] outline-none placeholder:text-[var(--muted-light)] focus:border-[var(--muted)] max-sm:order-3 max-sm:w-full max-sm:flex-none"
-            />
-          ) : (
-            <div className="flex-1" />
-          )}
-          <div className="flex max-w-full shrink-0 items-center gap-2 overflow-x-auto [scrollbar-width:none] max-sm:order-2 max-sm:w-full sm:ml-auto sm:w-auto sm:overflow-visible [&::-webkit-scrollbar]:hidden">
-            <BulkSelectControls
-              activeTab={activeTab}
-              bulkDeleting={bulkDeleting}
-              onBulkDeleteFiles={onBulkDeleteFiles}
-              onBulkDeleteMemories={onBulkDeleteMemories}
-              onBulkDeleteOutputs={onBulkDeleteOutputs}
-              onExitSelectMode={onExitSelectMode}
-              onSetSelectMode={onSetSelectMode}
-              selectMode={selectMode}
-              selectedFileCount={selectedFileCount}
-              selectedMemoryCount={selectedMemoryCount}
-              selectedOutputCount={selectedOutputCount}
-            />
-            {activeTab === 'outputs' ? (
-              <OutputFilterMenu
-                onCommit={onCommitOutputFilter}
-                open={outputFilterOpen}
-                outputFilter={outputFilter}
-                outputFilterRef={outputFilterRef}
-                setOpen={setOutputFilterOpen}
-              />
-            ) : null}
-            {(activeTab === 'memories' || activeTab === 'files' || activeTab === 'outputs') ? (
-              <LayoutControls layout={layout} onUpdateQuery={onUpdateQuery} />
-            ) : null}
-            {activeTab === 'outputs' ? (
-              <button
-                type="button"
-                title="Refresh"
-                onClick={onRefreshOutputs}
-                className={TOOLBAR_ICON_BUTTON_CLASS}
-              >
-                <RefreshCw size={14} strokeWidth={1.75} />
-              </button>
-            ) : null}
-            {activeTab === 'memories' ? (
-              <>
-                <button
-                  type="button"
-                  title="Search memories"
-                  onClick={() => onSetMemorySearchOpen((v) => !v)}
-                  className={`${TOOLBAR_ICON_BUTTON_CLASS} ${
-                    memorySearchOpen ? 'border-[var(--muted)] bg-[var(--surface-subtle)] text-[var(--foreground)]' : ''
-                  }`}
-                >
-                  <Search size={14} strokeWidth={1.75} />
-                </button>
-                <button type="button" onClick={onImportMemory} className={TOOLBAR_FILLED_BUTTON_CLASS}>
-                  <FolderInput size={13} />
-                  Import
-                </button>
-                <button type="button" onClick={onNewMemory} className={TOOLBAR_FILLED_BUTTON_CLASS}>
-                  <Plus size={13} />
-                  New Memory
-                </button>
-              </>
-            ) : activeTab === 'files' ? (
-              <>
-              <button
-                type="button"
-                title="Search files"
-                onClick={() => onSetFileSearchOpen((value) => !value)}
-                className={`${TOOLBAR_ICON_BUTTON_CLASS} ${
-                  fileSearchOpen ? 'border-[var(--muted)] bg-[var(--surface-subtle)] text-[var(--foreground)]' : ''
-                }`}
-              >
-                <Search size={14} strokeWidth={1.75} />
-              </button>
-              <FilesCreateUploadControls
-                activeFolder={activeFolder}
-                createMenuOpen={createMenuOpen}
-                createMenuRef={createMenuRef}
-                fileUploadRef={fileUploadRef}
-                folderUploadRef={folderUploadRef}
-                mode={mode}
-                onCreateNoteFile={onCreateNoteFile}
-                onPickFile={onPickFile}
-                onPickFolder={onPickFolder}
-                setCreateMenuOpen={setCreateMenuOpen}
-                setDialog={setDialog}
-                setDialogName={setDialogName}
-                setUploadMenuOpen={setUploadMenuOpen}
-                uploadMenuOpen={uploadMenuOpen}
-                uploadMenuRef={uploadMenuRef}
-              />
-              </>
-            ) : null}
-            {mode === 'files' && activeTab === 'files' ? (
-              <FilesCategoryControls
-                category={filesCategory}
-                onChange={(category) => onUpdateQuery({
-                  view: category === 'all' ? null : category,
-                  file: null,
-                  folder: null,
-                })}
-              />
-            ) : null}
-          </div>
+          <HeaderSearchForTab
+            activeTab={activeTab}
+            fileSearchOpen={fileSearchOpen}
+            fileSearchQuery={fileSearchQuery}
+            memorySearchOpen={memorySearchOpen}
+            memorySearchQuery={memorySearchQuery}
+            onSetFileSearchOpen={onSetFileSearchOpen}
+            onSetFileSearchQuery={onSetFileSearchQuery}
+            onSetMemorySearchOpen={onSetMemorySearchOpen}
+            onSetMemorySearchQuery={onSetMemorySearchQuery}
+          />
+          <TabToolbar
+            activeFolder={activeFolder}
+            activeTab={activeTab}
+            bulkDeleting={bulkDeleting}
+            createMenuOpen={createMenuOpen}
+            createMenuRef={createMenuRef}
+            fileUploadRef={fileUploadRef}
+            folderUploadRef={folderUploadRef}
+            layout={layout}
+            mode={mode}
+            onBulkDeleteFiles={onBulkDeleteFiles}
+            onBulkDeleteMemories={onBulkDeleteMemories}
+            onBulkDeleteOutputs={onBulkDeleteOutputs}
+            onCommitOutputFilter={onCommitOutputFilter}
+            onCreateNoteFile={onCreateNoteFile}
+            onExitSelectMode={onExitSelectMode}
+            onImportMemory={onImportMemory}
+            onNewMemory={onNewMemory}
+            onPickFile={onPickFile}
+            onPickFolder={onPickFolder}
+            onRefreshOutputs={onRefreshOutputs}
+            onSetSelectMode={onSetSelectMode}
+            onUpdateQuery={onUpdateQuery}
+            outputFilter={outputFilter}
+            outputFilterOpen={outputFilterOpen}
+            outputFilterRef={outputFilterRef}
+            selectMode={selectMode}
+            selectedFileCount={selectedFileCount}
+            selectedMemoryCount={selectedMemoryCount}
+            selectedOutputCount={selectedOutputCount}
+            setCreateMenuOpen={setCreateMenuOpen}
+            setDialog={setDialog}
+            setDialogName={setDialogName}
+            setOutputFilterOpen={setOutputFilterOpen}
+            setUploadMenuOpen={setUploadMenuOpen}
+            uploadMenuOpen={uploadMenuOpen}
+            uploadMenuRef={uploadMenuRef}
+          />
         </>
       )}
       </div>

@@ -115,17 +115,106 @@ function describeComposioIntegrationTool(toolName: string, input?: Record<string
   return titleCaseUnderscore(toolName.replace(/^composio_/i, ''))
 }
 
-export function getDescriptiveToolLabel(toolName: string, toolInput?: Record<string, unknown>): string {
+export type ToolLabelPhase = 'running' | 'complete' | 'error' | 'denied'
+
+const MCP_CALL_LABEL_BY_PHASE: Record<ToolLabelPhase, string> = {
+  running: 'Calling MCP tool',
+  complete: 'Called MCP tool',
+  error: 'MCP tool failed',
+  denied: 'MCP tool denied',
+}
+
+const MCP_SEARCH_LABEL_BY_PHASE: Record<ToolLabelPhase, string> = {
+  running: 'Searching MCP integrations',
+  complete: 'Searched MCP integrations',
+  error: 'MCP search failed',
+  denied: 'MCP search denied',
+}
+
+function clippedInputValue(
+  input: Record<string, unknown> | undefined,
+  key: string,
+  maxLength: number,
+): string | null {
+  const value = pickFirstStringFromInput(input, [key])
+  if (!value) return null
+  return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value
+}
+
+function describeMcpToolCall(input: Record<string, unknown> | undefined, phase: ToolLabelPhase): string {
+  const prefix = MCP_CALL_LABEL_BY_PHASE[phase]
+  const toolName = clippedInputValue(input, 'toolName', 48)
+  return toolName ? `${prefix} · ${toolName}` : prefix
+}
+
+function describeMcpToolSearch(input: Record<string, unknown> | undefined, phase: ToolLabelPhase): string {
+  const prefix = MCP_SEARCH_LABEL_BY_PHASE[phase]
+  const query = clippedInputValue(input, 'query', 56)
+  return query ? `${prefix} for “${query}”` : prefix
+}
+
+export function getDescriptiveToolLabel(
+  toolName: string,
+  toolInput?: Record<string, unknown>,
+  phase: ToolLabelPhase = 'running',
+): string {
+  // A connected agent (Claude Code, Codex…) names its own actions; show that, not the generic tool name.
+  if (toolName === 'remote_action') {
+    const title = pickFirstStringFromInput(toolInput, ['title'])
+    // An action the agent gave no real name (it says "tool call"/"tool") is shown as a plain "Tool call".
+    if (title && /^(tool( call)?|tool_call|action)$/i.test(title)) return 'Tool call'
+    if (title) return title.length > 140 ? `${title.slice(0, 140)}…` : title
+  }
+  // What a connected agent's terminal, file edits, and plan show, named for what they are.
+  if (toolName === 'remote_terminal') return 'Terminal output'
+  if (toolName === 'remote_diff') {
+    const path = pickFirstStringFromInput(toolInput, ['title'])
+    return path ? `Edited ${path.length > 120 ? `${path.slice(0, 120)}…` : path}` : 'File changes'
+  }
+  if (toolName === 'remote_plan') return 'Plan'
+
+  // Not a real tool: the row shown while a connected agent's computer is woken up or reconnecting.
+  if (toolName === 'connect_computer') {
+    return phase === 'running' ? 'Connecting to computer' : 'Connected to computer'
+  }
+
+  if (toolName === 'call_mcp_tool') {
+    return describeMcpToolCall(toolInput, phase)
+  }
+
+  if (toolName === 'search_mcp_tools') {
+    return describeMcpToolSearch(toolInput, phase)
+  }
+
+  if (toolName === 'search_memory' || toolName === 'search_messages') {
+    const base = toolName === 'search_memory' ? 'Searching memory' : 'Searching past messages'
+    const query = clippedInputValue(toolInput, 'query', 56)
+    return query ? `${base} for “${query}”` : base
+  }
+
   const map: Record<string, string> = {
     browser_run_task: 'Browsing the web',
     interactive_browser_session: 'Browsing the web',
     perplexity_search: 'Searching the web',
     parallel_search: 'Deep web research',
+    web_search: 'Searching the web',
+    deep_search: 'Deep web research',
+    web_fetch: 'Fetching page',
     search_knowledge: 'Searching your knowledge',
     list_skills: 'Checking your skills',
+    list_files: 'Listing files',
+    read_file: 'Reading a file',
+    write_file: 'Writing a file',
+    create_folder: 'Creating a folder',
+    move_file: 'Moving a file',
+    list_chats: 'Looking through your chats',
+    read_chat: 'Reading a chat',
     list_notes: 'Listing your notes',
     get_note: 'Opening a note',
     create_note: 'Creating a note',
+    append_to_note: 'Adding to a note',
+    replace_note_section: 'Updating a note section',
+    edit_note: 'Editing a note',
     update_note: 'Updating a note',
     delete_note: 'Deleting a note',
     save_memory: 'Saving to memory',
@@ -133,9 +222,11 @@ export function getDescriptiveToolLabel(toolName: string, toolInput?: Record<str
     delete_memory: 'Deleting memory',
     generate_image: 'Generating an image',
     generate_video: 'Generating a video',
-    run_daytona_sandbox: 'Running your workspace',
-    search_mcp_tools: 'Searching MCP integrations',
-    call_mcp_tool: 'Calling MCP tool',
+    computer_exec: 'Running a command on the computer',
+    computer_read_file: 'Reading a file on the computer',
+    computer_write_file: 'Writing a file on the computer',
+    computer_list_files: 'Listing files on the computer',
+    computer_open_url: 'Opening a URL on the computer',
   }
   if (map[toolName]) return map[toolName]!
 
@@ -147,37 +238,8 @@ export function getDescriptiveToolLabel(toolName: string, toolInput?: Record<str
     return describeComposioIntegrationTool(toolName, toolInput)
   }
 
-  if (toolName === 'perplexity_search' && toolInput) {
-    const q = pickFirstStringFromInput(toolInput, ['query', 'q'])
-    if (q) {
-      const clipped = q.length > 72 ? `${q.slice(0, 72)}…` : q
-      return `Searching the web for “${clipped}”`
-    }
-  }
-
-  if (toolName === 'parallel_search' && toolInput) {
-    const o = pickFirstStringFromInput(toolInput, ['objective'])
-    if (o) {
-      const clipped = o.length > 72 ? `${o.slice(0, 72)}…` : o
-      return `Researching: “${clipped}”`
-    }
-  }
-
-  if (toolName === 'call_mcp_tool' && toolInput) {
-    const toolNameArg = pickFirstStringFromInput(toolInput, ['toolName'])
-    if (toolNameArg) {
-      const clipped = toolNameArg.length > 48 ? `${toolNameArg.slice(0, 48)}…` : toolNameArg
-      return `MCP: ${clipped}`
-    }
-  }
-
-  if (toolName === 'search_mcp_tools' && toolInput) {
-    const q = pickFirstStringFromInput(toolInput, ['query'])
-    if (q) {
-      const clipped = q.length > 56 ? `${q.slice(0, 56)}…` : q
-      return `Searching MCP for “${clipped}”`
-    }
-  }
+  const searchLabel = webSearchToolLabel(toolName, toolInput)
+  if (searchLabel) return searchLabel
 
   if (toolName.startsWith('mcp_')) {
     const rest = toolName.slice(4)
@@ -192,4 +254,32 @@ export function getDescriptiveToolLabel(toolName: string, toolInput?: Record<str
   }
 
   return titleCaseUnderscore(toolName)
+}
+
+function webSearchToolLabel(
+  toolName: string,
+  toolInput: Record<string, unknown> | undefined,
+): string | null {
+  if (!toolInput) return null
+  const clip = (value: string, max: number) => (value.length > max ? `${value.slice(0, max)}…` : value)
+
+  if (toolName === 'perplexity_search' || toolName === 'web_search') {
+    const q = pickFirstStringFromInput(toolInput, ['query', 'q'])
+    return q ? `Searching the web for “${clip(q, 72)}”` : null
+  }
+  if (toolName === 'parallel_search' || toolName === 'deep_search') {
+    const o = pickFirstStringFromInput(toolInput, ['objective'])
+    return o ? `Researching: “${clip(o, 72)}”` : null
+  }
+  if (toolName === 'web_fetch') {
+    const single = pickFirstStringFromInput(toolInput, ['url'])
+    if (single) return `Fetching “${clip(single, 72)}”`
+    const urls = Array.isArray(toolInput.urls)
+      ? toolInput.urls.filter((v): v is string => typeof v === 'string')
+      : []
+    if (urls.length === 0) return null
+    const clipped = clip(urls[0]!, 60)
+    return urls.length > 1 ? `Fetching “${clipped}” +${urls.length - 1} more` : `Fetching “${clipped}”`
+  }
+  return null
 }

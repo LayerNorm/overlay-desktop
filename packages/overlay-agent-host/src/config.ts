@@ -1,0 +1,73 @@
+import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { dirname } from 'node:path'
+import { z } from 'zod'
+import { filesystemGrantSchema } from '@layernorm/overlay-agent-bridge-protocol'
+import { loadStoredConnection } from './connection.js'
+import { ACP_ADAPTER_MANIFESTS, resolveAcpAdapterManifest } from './adapter-manifests.js'
+
+export const agentHostConfigSchema = z.object({
+  durableLifecycle: z.boolean().optional(),
+  environmentId: z.string().min(1),
+  workspaceId: z.string().min(1),
+  controlPlaneUrl: z.string().url(),
+  credentialEnv: z.string().min(1).default('OVERLAY_AGENT_HOST_CREDENTIAL'),
+  stateDirectory: z.string().min(1),
+  filesystem: filesystemGrantSchema,
+  adapters: z.array(z.union([
+    z.object({ manifest: z.enum(Object.keys(ACP_ADAPTER_MANIFESTS) as [keyof typeof ACP_ADAPTER_MANIFESTS, ...(keyof typeof ACP_ADAPTER_MANIFESTS)[]]), env: z.record(z.string(), z.string()).optional() }).strict(),
+    z.object({ id: z.string().min(1), displayName: z.string().min(1), protocol: z.literal('fake') }).strict(),
+    z.object({
+      id: z.string().min(1), displayName: z.string().min(1), protocol: z.literal('acp'),
+      command: z.string().min(1), args: z.array(z.string()).optional(), env: z.record(z.string(), z.string()).optional(),
+    }).strict(),
+    z.object({
+      id: z.string().min(1), displayName: z.string().min(1), protocol: z.literal('acpx'),
+      agent: z.string().min(1), env: z.record(z.string(), z.string()).optional(),
+    }).strict(),
+    z.object({
+      id: z.string().min(1), displayName: z.string().min(1), protocol: z.literal('eve'),
+      host: z.string().url(), bearerTokenEnv: z.string().min(1).optional(),
+    }).strict(),
+  ])).min(1),
+}).strict()
+type AgentHostFileConfig = z.infer<typeof agentHostConfigSchema>
+export type AgentHostConfig = Omit<AgentHostFileConfig, 'adapters'> & {
+  adapters: Array<
+    | { id: string; displayName: string; protocol: 'fake' }
+    | { id: string; displayName: string; protocol: 'acp'; command: string; args?: string[]; env?: Record<string, string> }
+    | { id: string; displayName: string; protocol: 'acpx'; agent: string; env?: Record<string, string> }
+    | { id: string; displayName: string; protocol: 'eve'; host: string; bearerTokenEnv?: string }
+  >
+  credential?: string
+}
+
+export async function loadAgentHostConfig(path: string): Promise<AgentHostConfig> {
+  const parsed = agentHostConfigSchema.parse(JSON.parse(await readFile(path, 'utf8')))
+  const config: AgentHostConfig = {
+    ...parsed,
+    adapters: parsed.adapters.map((adapter) => {
+      if (!('manifest' in adapter)) return adapter
+      const manifest = resolveAcpAdapterManifest(adapter.manifest)
+      if (!manifest) throw new Error(`unknown ACP adapter manifest: ${adapter.manifest}`)
+      return { ...manifest, args: [...manifest.args], ...('env' in adapter && adapter.env ? { env: adapter.env } : {}) }
+    }),
+  }
+  const stored = await loadStoredConnection(config.stateDirectory)
+  if (stored && (stored.environmentId !== config.environmentId || stored.workspaceId !== config.workspaceId)) {
+    throw new Error('stored connection scope does not match the host configuration')
+  }
+  const credential = process.env[config.credentialEnv]?.trim() ?? stored?.token
+  return { ...config, ...(credential ? { credential } : {}) }
+}
+
+export async function saveAgentHostConfig(
+  path: string,
+  config: Omit<AgentHostConfig, 'credential'>,
+): Promise<void> {
+  const parsed = agentHostConfigSchema.parse(config)
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 })
+  const temporary = `${path}.${process.pid}.tmp`
+  await writeFile(temporary, `${JSON.stringify(parsed, null, 2)}\n`, { mode: 0o600, flag: 'wx' })
+  await rename(temporary, path)
+  await chmod(path, 0o600)
+}

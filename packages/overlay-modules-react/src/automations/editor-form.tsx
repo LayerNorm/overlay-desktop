@@ -1,7 +1,8 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { lazy, Suspense, type ReactNode } from 'react'
 import type {
+  AutomationGraph,
   AutomationSaveState,
   AutomationSchedule,
   AutomationTestState,
@@ -9,7 +10,11 @@ import type {
 } from '@overlay/app-core'
 import { MIN_AUTOMATION_INTERVAL_MINUTES, WEEKDAY_LABELS } from '@overlay/app-core/automations'
 import { SettingsCard, SettingsToggle } from '@overlay/modules-react/settings'
-import { AutomationGraphCanvas } from './graph-canvas'
+import { Select } from '@overlay/ui/primitives'
+
+const AutomationGraphCanvas = lazy(() =>
+  import('./reactflow-canvas').then((mod) => ({ default: mod.AutomationGraphCanvas })),
+)
 
 export interface AutomationModelOption {
   id: string
@@ -27,13 +32,14 @@ export interface AutomationEditorFormProps {
   time: string
   dayOfWeek: number
   dayOfMonth: number
-  graphSource: string
+  graph?: AutomationGraph
   modelId: string
   timeZoneOptions: readonly AutomationTimeZoneOption[]
   modelOptions: readonly AutomationModelOption[]
   saveState: AutomationSaveState
   testState: AutomationTestState
   testMessage?: string | null
+  onGraphChange?: (graph: AutomationGraph) => void
   onNameChange: (value: string) => void
   onDescriptionChange: (value: string) => void
   onInstructionsChange: (value: string) => void
@@ -44,11 +50,16 @@ export interface AutomationEditorFormProps {
   onTimeChange: (value: string) => void
   onDayOfWeekChange: (value: number) => void
   onDayOfMonthChange: (value: number) => void
-  onGraphSourceChange?: (value: string) => void
   onModelIdChange: (value: string) => void
   onSave: () => void
   onTest: () => void
   renderInstructionsEditor: (props: { value: string; onChange: (value: string) => void }) => ReactNode
+  /**
+   * Single flow surface. The host supplies the run viewer here so the editable
+   * canvas and the live/replay canvas are one diagram rather than two copies of
+   * the same graph stacked down the page.
+   */
+  renderFlow?: () => ReactNode
 }
 
 export function AutomationEditorForm({
@@ -62,13 +73,14 @@ export function AutomationEditorForm({
   time,
   dayOfWeek,
   dayOfMonth,
-  graphSource,
+  graph,
   modelId,
   timeZoneOptions,
   modelOptions,
   saveState,
   testState,
   testMessage,
+  onGraphChange,
   onNameChange,
   onDescriptionChange,
   onInstructionsChange,
@@ -83,191 +95,347 @@ export function AutomationEditorForm({
   onSave,
   onTest,
   renderInstructionsEditor,
+  renderFlow,
 }: AutomationEditorFormProps) {
-  const scheduleKindOptions: readonly { value: AutomationSchedule['kind']; label: string }[] = [
-    { value: 'interval', label: 'Interval' },
-    { value: 'daily', label: 'Daily' },
-    { value: 'weekly', label: 'Weekly' },
-    { value: 'monthly', label: 'Monthly' },
-  ]
-
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium text-[var(--foreground)]">Automation editor</p>
-            <p className="text-xs text-[var(--muted)]">Configure and test this automation.</p>
-          </div>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={saveState === 'saving' || !name.trim() || !instructions.trim()}
-            className="rounded-lg bg-[var(--foreground)] px-3 py-1.5 text-xs font-medium text-[var(--background)] transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {saveState === 'saving' ? 'Saving...' : saveState === 'saved' ? 'Saved' : 'Save changes'}
-          </button>
-        </div>
+        <AutomationEditorHeader
+          name={name}
+          instructions={instructions}
+          saveState={saveState}
+          onSave={onSave}
+        />
 
-        <SettingsCard title="Configuration">
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-medium text-[var(--foreground)]">
-                Name
-                <input
-                  value={name}
-                  onChange={(event) => onNameChange(event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] outline-none focus:ring-1 focus:ring-[var(--foreground)]"
-                />
-              </label>
-              <label className="block text-sm font-medium text-[var(--foreground)]">
-                Description
-                <input
-                  value={description}
-                  onChange={(event) => onDescriptionChange(event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] outline-none focus:ring-1 focus:ring-[var(--foreground)]"
-                />
-              </label>
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium text-[var(--foreground)]">Enabled</p>
-                <p className="text-xs text-[var(--muted)]">Run this automation on its schedule.</p>
-              </div>
-              <SettingsToggle checked={enabled} onChange={() => onEnabledChange(!enabled)} />
-            </div>
-          </div>
-          <div className="mt-4 flex items-center justify-between border-t border-[var(--border)] pt-4">
-            {saveState === 'error' ? (
-              <p className="text-xs text-red-500">Could not save automation. Please try again.</p>
-            ) : (
-              <span className="text-xs text-[var(--muted)]">Changes are saved manually.</span>
-            )}
-          </div>
-        </SettingsCard>
+        <AutomationConfigurationCard
+          name={name}
+          description={description}
+          enabled={enabled}
+          saveState={saveState}
+          onNameChange={onNameChange}
+          onDescriptionChange={onDescriptionChange}
+          onEnabledChange={onEnabledChange}
+        />
 
-        <SettingsCard title="Schedule">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="block text-sm font-medium text-[var(--foreground)]">
-              Frequency
-              <select
-                value={scheduleKind}
-                onChange={(event) => onScheduleKindChange(event.target.value as AutomationSchedule['kind'])}
-                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 pr-12 text-sm text-[var(--foreground)] outline-none focus:ring-1 focus:ring-[var(--foreground)]"
-              >
-                {scheduleKindOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </label>
-            {scheduleKind === 'interval' ? (
-              <label className="block text-sm font-medium text-[var(--foreground)]">
-                Every N minutes
-                <input
-                  type="number"
-                  min={MIN_AUTOMATION_INTERVAL_MINUTES}
-                  value={intervalMinutes}
-                  onChange={(event) => onIntervalMinutesChange(Number(event.target.value))}
-                  className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-                />
-              </label>
-            ) : (
-              <label className="block text-sm font-medium text-[var(--foreground)]">
-                Time
-                <input
-                  type="time"
-                  value={time}
-                  onChange={(event) => onTimeChange(event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 pr-8 text-sm text-[var(--foreground)] outline-none"
-                />
-              </label>
-            )}
-            {scheduleKind === 'weekly' && (
-              <label className="block text-sm font-medium text-[var(--foreground)]">
-                Day of week
-                <select
-                  value={dayOfWeek}
-                  onChange={(event) => onDayOfWeekChange(Number(event.target.value))}
-                  className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 pr-12 text-sm text-[var(--foreground)] outline-none"
-                >
-                  {WEEKDAY_LABELS.map((day, index) => (
-                    <option key={day} value={index}>{day}</option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {scheduleKind === 'monthly' && (
-              <label className="block text-sm font-medium text-[var(--foreground)]">
-                Day of month
-                <input
-                  type="number"
-                  min={1}
-                  max={31}
-                  value={dayOfMonth}
-                  onChange={(event) => onDayOfMonthChange(Number(event.target.value))}
-                  className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 pr-8 text-sm text-[var(--foreground)] outline-none"
-                />
-              </label>
-            )}
-            <label className="block text-sm font-medium text-[var(--foreground)]">
-              Time zone
-              <select
-                value={timezone}
-                onChange={(event) => onTimezoneChange(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 pr-12 text-sm text-[var(--foreground)] outline-none"
-              >
-                {timeZoneOptions.map((zone) => (
-                  <option key={zone.value} value={zone.value}>{zone.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm font-medium text-[var(--foreground)]">
-              Model
-              <select
-                value={modelId}
-                onChange={(event) => onModelIdChange(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 pr-12 text-sm text-[var(--foreground)] outline-none"
-              >
-                {modelOptions.map((model) => (
-                  <option key={model.id} value={model.id}>{model.name}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </SettingsCard>
+        <AutomationScheduleCard
+          scheduleKind={scheduleKind}
+          intervalMinutes={intervalMinutes}
+          timezone={timezone}
+          time={time}
+          dayOfWeek={dayOfWeek}
+          dayOfMonth={dayOfMonth}
+          modelId={modelId}
+          timeZoneOptions={timeZoneOptions}
+          modelOptions={modelOptions}
+          onScheduleKindChange={onScheduleKindChange}
+          onIntervalMinutesChange={onIntervalMinutesChange}
+          onTimezoneChange={onTimezoneChange}
+          onTimeChange={onTimeChange}
+          onDayOfWeekChange={onDayOfWeekChange}
+          onDayOfMonthChange={onDayOfMonthChange}
+          onModelIdChange={onModelIdChange}
+        />
 
         <SettingsCard title="Instructions">
-          <div className="text-[var(--foreground)]">
+          <div className="text-(--foreground)">
             {renderInstructionsEditor({ value: instructions, onChange: onInstructionsChange })}
           </div>
         </SettingsCard>
 
-        <SettingsCard title="Flow">
-          <AutomationGraphCanvas source={graphSource} />
-        </SettingsCard>
+        <AutomationFlowCard graph={graph} onGraphChange={onGraphChange} renderFlow={renderFlow} />
 
-        <SettingsCard title="Test">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-[var(--foreground)]">Run once</p>
-              <p className="text-xs text-[var(--muted)]">Executes the automation now and writes the result to the automation chat.</p>
-            </div>
-            <button
-              type="button"
-              onClick={onTest}
-              disabled={testState === 'running' || !instructions.trim()}
-              className="rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--border)] disabled:opacity-50"
-            >
-              {testState === 'running' ? 'Running...' : 'Test automation'}
-            </button>
-          </div>
-          {testMessage ? (
-            <p className={`mt-3 text-xs ${testState === 'error' ? 'text-red-500' : 'text-[var(--muted)]'}`}>
-              {testMessage}
-            </p>
-          ) : null}
-        </SettingsCard>
+        <AutomationTestCard
+          instructions={instructions}
+          testState={testState}
+          testMessage={testMessage}
+          onTest={onTest}
+        />
       </div>
     </div>
+  )
+}
+
+function AutomationEditorHeader({
+  name,
+  instructions,
+  saveState,
+  onSave,
+}: {
+  name: string
+  instructions: string
+  saveState: AutomationEditorFormProps['saveState']
+  onSave: AutomationEditorFormProps['onSave']
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <p className="text-sm font-medium text-(--foreground)">Automation editor</p>
+        <p className="text-xs text-(--muted)">Configure and test this automation.</p>
+      </div>
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={saveState === 'saving' || !name.trim() || !instructions.trim()}
+        className="rounded-lg bg-(--foreground) px-3 py-1.5 text-xs font-medium text-(--background) transition-opacity hover:opacity-90 disabled:opacity-50"
+      >
+        {saveState === 'saving' ? 'Saving...' : saveState === 'saved' ? 'Saved' : 'Save changes'}
+      </button>
+    </div>
+  )
+}
+
+function AutomationConfigurationCard({
+  name,
+  description,
+  enabled,
+  saveState,
+  onNameChange,
+  onDescriptionChange,
+  onEnabledChange,
+}: {
+  name: string
+  description: string
+  enabled: boolean
+  saveState: AutomationEditorFormProps['saveState']
+  onNameChange: AutomationEditorFormProps['onNameChange']
+  onDescriptionChange: AutomationEditorFormProps['onDescriptionChange']
+  onEnabledChange: AutomationEditorFormProps['onEnabledChange']
+}) {
+  return (
+    <SettingsCard title="Configuration">
+      <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-medium text-(--foreground)">
+            Name
+            <input
+              value={name}
+              onChange={(event) => onNameChange(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-(--border) bg-(--background) px-3 py-2 text-sm text-(--foreground) outline-hidden focus:ring-1 focus:ring-(--foreground)"
+            />
+          </label>
+          <label className="block text-sm font-medium text-(--foreground)">
+            Description
+            <input
+              value={description}
+              onChange={(event) => onDescriptionChange(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-(--border) bg-(--background) px-3 py-2 text-sm text-(--foreground) outline-hidden focus:ring-1 focus:ring-(--foreground)"
+            />
+          </label>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-(--foreground)">Enabled</p>
+            <p className="text-xs text-(--muted)">Run this automation on its schedule.</p>
+          </div>
+          <SettingsToggle checked={enabled} onChange={() => onEnabledChange(!enabled)} />
+        </div>
+      </div>
+      <div className="mt-4 flex items-center justify-between border-t border-(--border) pt-4">
+        {saveState === 'error' ? (
+          <p className="text-xs text-red-500">Could not save automation. Please try again.</p>
+        ) : (
+          <span className="text-xs text-(--muted)">Changes are saved manually.</span>
+        )}
+      </div>
+    </SettingsCard>
+  )
+}
+
+const SCHEDULE_KIND_OPTIONS: readonly { value: AutomationSchedule['kind']; label: string }[] = [
+  { value: 'interval', label: 'Interval' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+]
+
+function AutomationScheduleCard({
+  scheduleKind,
+  intervalMinutes,
+  timezone,
+  time,
+  dayOfWeek,
+  dayOfMonth,
+  modelId,
+  timeZoneOptions,
+  modelOptions,
+  onScheduleKindChange,
+  onIntervalMinutesChange,
+  onTimezoneChange,
+  onTimeChange,
+  onDayOfWeekChange,
+  onDayOfMonthChange,
+  onModelIdChange,
+}: {
+  scheduleKind: AutomationEditorFormProps['scheduleKind']
+  intervalMinutes: number
+  timezone: string
+  time: string
+  dayOfWeek: number
+  dayOfMonth: number
+  modelId: string
+  timeZoneOptions: AutomationEditorFormProps['timeZoneOptions']
+  modelOptions: AutomationEditorFormProps['modelOptions']
+  onScheduleKindChange: AutomationEditorFormProps['onScheduleKindChange']
+  onIntervalMinutesChange: AutomationEditorFormProps['onIntervalMinutesChange']
+  onTimezoneChange: AutomationEditorFormProps['onTimezoneChange']
+  onTimeChange: AutomationEditorFormProps['onTimeChange']
+  onDayOfWeekChange: AutomationEditorFormProps['onDayOfWeekChange']
+  onDayOfMonthChange: AutomationEditorFormProps['onDayOfMonthChange']
+  onModelIdChange: AutomationEditorFormProps['onModelIdChange']
+}) {
+  return (
+    <SettingsCard title="Schedule">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <label className="block text-sm font-medium text-(--foreground)">
+          Frequency
+          <Select
+            value={scheduleKind}
+            onChange={(event) => onScheduleKindChange(event.target.value as AutomationSchedule['kind'])}
+            className="mt-1 w-full rounded-lg border border-(--border) bg-(--background) px-3 py-2 pr-12 text-sm text-(--foreground) outline-hidden focus:ring-1 focus:ring-(--foreground)"
+          >
+            {SCHEDULE_KIND_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </Select>
+        </label>
+        {scheduleKind === 'interval' ? (
+          <label className="block text-sm font-medium text-(--foreground)">
+            Every N minutes
+            <input
+              type="number"
+              min={MIN_AUTOMATION_INTERVAL_MINUTES}
+              value={intervalMinutes}
+              onChange={(event) => onIntervalMinutesChange(Number(event.target.value))}
+              className="mt-1 w-full rounded-lg border border-(--border) bg-(--background) px-3 py-2 text-sm text-(--foreground) outline-hidden"
+            />
+          </label>
+        ) : (
+          <label className="block text-sm font-medium text-(--foreground)">
+            Time
+            <input
+              type="time"
+              value={time}
+              onChange={(event) => onTimeChange(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-(--border) bg-(--background) px-3 py-2 pr-8 text-sm text-(--foreground) outline-hidden"
+            />
+          </label>
+        )}
+        {scheduleKind === 'weekly' && (
+          <label className="block text-sm font-medium text-(--foreground)">
+            Day of week
+            <Select
+              value={dayOfWeek}
+              onChange={(event) => onDayOfWeekChange(Number(event.target.value))}
+              className="mt-1 w-full rounded-lg border border-(--border) bg-(--background) px-3 py-2 pr-12 text-sm text-(--foreground) outline-hidden"
+            >
+              {WEEKDAY_LABELS.map((day, index) => (
+                <option key={day} value={index}>{day}</option>
+              ))}
+            </Select>
+          </label>
+        )}
+        {scheduleKind === 'monthly' && (
+          <label className="block text-sm font-medium text-(--foreground)">
+            Day of month
+            <input
+              type="number"
+              min={1}
+              max={31}
+              value={dayOfMonth}
+              onChange={(event) => onDayOfMonthChange(Number(event.target.value))}
+              className="mt-1 w-full rounded-lg border border-(--border) bg-(--background) px-3 py-2 pr-8 text-sm text-(--foreground) outline-hidden"
+            />
+          </label>
+        )}
+        <label className="block text-sm font-medium text-(--foreground)">
+          Time zone
+          <Select
+            value={timezone}
+            onChange={(event) => onTimezoneChange(event.target.value)}
+            className="mt-1 w-full rounded-lg border border-(--border) bg-(--background) px-3 py-2 pr-12 text-sm text-(--foreground) outline-hidden"
+          >
+            {timeZoneOptions.map((zone) => (
+              <option key={zone.value} value={zone.value}>{zone.label}</option>
+            ))}
+          </Select>
+        </label>
+        <label className="block text-sm font-medium text-(--foreground)">
+          Model
+          <Select
+            value={modelId}
+            onChange={(event) => onModelIdChange(event.target.value)}
+            className="mt-1 w-full rounded-lg border border-(--border) bg-(--background) px-3 py-2 pr-12 text-sm text-(--foreground) outline-hidden"
+          >
+            {modelOptions.map((model) => (
+              <option key={model.id} value={model.id}>{model.name}</option>
+            ))}
+          </Select>
+        </label>
+      </div>
+    </SettingsCard>
+  )
+}
+
+function AutomationFlowCard({
+  graph,
+  onGraphChange,
+  renderFlow,
+}: {
+  graph: AutomationEditorFormProps['graph']
+  onGraphChange: AutomationEditorFormProps['onGraphChange']
+  renderFlow: AutomationEditorFormProps['renderFlow']
+}) {
+  // Text instructions are the authoring surface. The flow section only
+  // renders for grandfathered automations whose graph was hand-edited in
+  // the canvas (`manuallyEdited`) — auto-derived graphs never show it.
+  if (!(renderFlow || graph?.manuallyEdited)) return null
+  return (
+    <SettingsCard title="Flow">
+      {renderFlow ? renderFlow() : (
+        <Suspense
+          fallback={
+            <div className="h-80 animate-pulse rounded-lg border border-(--border) bg-(--surface-subtle)" />
+          }
+        >
+          <AutomationGraphCanvas graph={graph!} onGraphChange={onGraphChange} />
+        </Suspense>
+      )}
+    </SettingsCard>
+  )
+}
+
+function AutomationTestCard({
+  instructions,
+  testState,
+  testMessage,
+  onTest,
+}: {
+  instructions: string
+  testState: AutomationEditorFormProps['testState']
+  testMessage: AutomationEditorFormProps['testMessage']
+  onTest: AutomationEditorFormProps['onTest']
+}) {
+  return (
+    <SettingsCard title="Test">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-(--foreground)">Run once</p>
+          <p className="text-xs text-(--muted)">Executes the automation now and writes the result to the automation chat.</p>
+        </div>
+        <button
+          type="button"
+          onClick={onTest}
+          disabled={testState === 'running' || !instructions.trim()}
+          className="rounded-lg border border-(--border) bg-(--surface-subtle) px-3 py-1.5 text-xs font-medium text-(--foreground) transition-colors hover:bg-(--border) disabled:opacity-50"
+        >
+          {testState === 'running' ? 'Running...' : 'Test automation'}
+        </button>
+      </div>
+      {testMessage ? (
+        <p className={`mt-3 text-xs ${testState === 'error' ? 'text-red-500' : 'text-(--muted)'}`}>
+          {testMessage}
+        </p>
+      ) : null}
+    </SettingsCard>
   )
 }

@@ -154,8 +154,11 @@ export function registerTrustedIpcWindow(window: BrowserWindow, role: TrustedIpc
     browserWindowId: window.id,
     role
   })
+  // window.webContents is already destroyed when this handler runs after
+  // teardown; reading .id there throws "Object has been destroyed".
+  const trustedWebContentsId = window.webContents.id
   window.webContents.once('destroyed', () => {
-    trustedWindows.delete(window.webContents.id)
+    trustedWindows.delete(trustedWebContentsId)
   })
 }
 

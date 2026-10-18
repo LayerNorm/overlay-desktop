@@ -6,7 +6,6 @@ import type {
   ChatOutput,
   ConversationMessagePart,
   GenerationResult,
-  LiveMessageDelta,
   MessageImageAttachment,
   MessageReasoningPart,
   MessageTextPart,
@@ -22,17 +21,25 @@ import {
   generatedUiDataToPlainText,
   isGeneratedUiPart,
 } from './generated-ui'
+import { isOverlayGatedToolOutput } from './gating'
 
-export function getMessageText(msg: { parts?: Array<{ type: string; text?: string }> }): string {
-  if (!msg.parts) return ''
-  return msg.parts.filter((part) => part.type === 'text').map((part) => part.text || '').join('')
+export function getMessageText(msg: {
+  parts?: Array<{ type: string; text?: string }>
+  content?: string
+}): string {
+  const fromParts = (msg.parts ?? [])
+    .filter((part) => part.type === 'text' || part.type === 'output-text')
+    .map((part) => part.text || '')
+    .join('')
+  if (fromParts.trim()) return fromParts
+  return typeof msg.content === 'string' ? msg.content : fromParts
 }
 
 export function messageHasVisibleAssistantActivity(msg: {
   parts?: Array<{ type: string; text?: string; toolInvocation?: unknown; url?: string }>
 }): boolean {
   return (msg.parts ?? []).some((part) => {
-    if (part.type === 'text' || part.type === 'reasoning') return Boolean(part.text?.trim())
+    if (part.type === 'text' || part.type === 'output-text' || part.type === 'reasoning') return Boolean(part.text?.trim())
     if (isGeneratedUiPart(part)) return true
     if (part.type === 'tool-invocation') return Boolean(part.toolInvocation)
     if (part.type === 'file') return Boolean(part.url)
@@ -137,6 +144,68 @@ export function buildAssistantVisualSegments(blocks: AssistantVisualBlock[]): As
   return buildAssistantVisualSegmentsRaw(blocks)
 }
 
+/**
+ * Which segments a settled assistant message folds behind the single
+ * "Worked" row at the top of the reply: every work segment — tool calls,
+ * reasoning beats, browser sessions — collapses, so the collapsed reply is
+ * just the text in order plus one summary row. Expanding the row switches
+ * the message to the raw timeline, with each work segment back at its true
+ * position between the texts. Text never collapses, and segments that are
+ * themselves the deliverable — draft cards, gated-plan callouts, generated
+ * files, generated UI — stay inline so the transcript keeps every artifact
+ * visible in both modes.
+ */
+export function planAssistantWorkCollapse(
+  segments: AssistantVisualSegment[],
+  options?: {
+    /**
+     * Also fold the text written before the last piece of work, so the collapsed reply is the final answer only.
+     * Used for agent replies; a reply with no work keeps all its text.
+     */
+    foldTextBeforeLastWork?: boolean
+  },
+): {
+  /** Work segment indexes folded behind the top "Worked" row, in original order. */
+  collapsedIndexes: number[]
+  /** Tool calls inside the collapsed set — drives the row's "— N tool calls" suffix. */
+  collapsedToolCallCount: number
+} {
+  const collapsedIndexes: number[] = []
+  let collapsedToolCallCount = 0
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i]!
+    if (seg.kind === 'reasoning' || seg.kind === 'browser') {
+      collapsedIndexes.push(i)
+      continue
+    }
+    if (seg.kind === 'tools') {
+      const onlyTools = seg.items.every((item) => item.kind === 'tool')
+      if (onlyTools && seg.items.length === 1) {
+        const tool = seg.items[0] as ToolVisualBlock
+        if (getDraftFromToolBlock(tool) || isOverlayGatedToolOutput(tool.toolOutput)) {
+          continue
+        }
+      }
+      collapsedIndexes.push(i)
+      collapsedToolCallCount += seg.items.filter((item) => item.kind === 'tool').length
+      continue
+    }
+  }
+  if (options?.foldTextBeforeLastWork && collapsedIndexes.length > 0) {
+    const lastWork = collapsedIndexes[collapsedIndexes.length - 1]!
+    const textBefore: number[] = []
+    for (let i = 0; i < lastWork; i++) if (segments[i]!.kind === 'text') textBefore.push(i)
+    // Something must stay visible: with no text after the last work, the last text before it stays.
+    const hasTextAfter = segments.slice(lastWork + 1).some((segment) => segment.kind === 'text')
+    if (!hasTextAfter) textBefore.pop()
+    if (textBefore.length > 0) {
+      collapsedIndexes.push(...textBefore)
+      collapsedIndexes.sort((left, right) => left - right)
+    }
+  }
+  return { collapsedIndexes, collapsedToolCallCount }
+}
+
 function isToolChainSegment(segment: AssistantVisualSegment): boolean {
   return segment.kind === 'browser' || segment.kind === 'tools'
 }
@@ -177,7 +246,39 @@ export function getMessageImages(msg: {
   return getMessageImageAttachments(msg).map((attachment) => attachment.url)
 }
 
-/** Act assistant for a user turn: mirrors chat0 until streaming appends the assistant only to actChat. */
+function assistantsAfterUserAt<T extends { role: string }>(messages: T[], userIndex: number): T[] {
+  const candidates: T[] = []
+  for (let index = userIndex + 1; index < messages.length; index++) {
+    const message = messages[index]!
+    if (message.role === 'user') break
+    if (message.role === 'assistant') candidates.push(message)
+  }
+  return candidates
+}
+
+function userIndexByTurnCount(
+  messages: Array<{ id?: string; role: string }>,
+  userMsgId: string,
+): number {
+  let userCount = 0
+  let targetCount = -1
+  for (let index = 0; index < messages.length; index++) {
+    const message = messages[index]
+    if (message?.role !== 'user') continue
+    if (message.id === userMsgId && targetCount < 0) targetCount = userCount
+    userCount++
+  }
+  if (targetCount < 0) return -1
+  let seen = 0
+  for (let index = 0; index < messages.length; index++) {
+    if (messages[index]?.role !== 'user') continue
+    if (seen === targetCount) return index
+    seen++
+  }
+  return -1
+}
+
+/** Act assistant for a user turn: look up by id, then by user-turn count — never by raw array index. */
 export function resolveActAssistant<
   T extends { id?: string; role: string; parts?: Array<{ type: string; text?: string; toolInvocation?: unknown; url?: string }> },
 >(
@@ -185,26 +286,25 @@ export function resolveActAssistant<
   actMsgs: T[],
   userMsgId: string,
 ): T | null {
-  const i = chat0Linear.findIndex((m) => m.role === 'user' && m.id === userMsgId)
-  if (i >= 0) {
-    const candidates: T[] = []
-    for (let j = i + 1; j < actMsgs.length; j++) {
-      const m = actMsgs[j]!
-      if (m.role === 'user') break
-      if (m.role === 'assistant') candidates.push(m)
-    }
-    const selected = chooseAssistantCandidate(candidates)
+  const byId = actMsgs.findIndex((message) => message.id === userMsgId && message.role === 'user')
+  if (byId >= 0) {
+    const selected = chooseAssistantCandidate(assistantsAfterUserAt(actMsgs, byId))
     if (selected) return selected
   }
-  const ui = actMsgs.findIndex((m) => m.id === userMsgId && m.role === 'user')
-  if (ui >= 0) {
-    const candidates: T[] = []
-    for (let j = ui + 1; j < actMsgs.length; j++) {
-      const m = actMsgs[j]!
-      if (m.role === 'user') break
-      if (m.role === 'assistant') candidates.push(m)
+  const byTurnCount = userIndexByTurnCount(actMsgs, userMsgId)
+  if (byTurnCount >= 0) {
+    const selected = chooseAssistantCandidate(assistantsAfterUserAt(actMsgs, byTurnCount))
+    if (selected) return selected
+  }
+  const sourceUserIndex = userIndexByTurnCount(chat0Linear, userMsgId)
+  if (sourceUserIndex < 0) return null
+  let userCount = 0
+  for (let index = 0; index < actMsgs.length; index++) {
+    if (actMsgs[index]?.role !== 'user') continue
+    if (userCount === sourceUserIndex) {
+      return chooseAssistantCandidate(assistantsAfterUserAt(actMsgs, index))
     }
-    return chooseAssistantCandidate(candidates)
+    userCount++
   }
   return null
 }
@@ -321,111 +421,10 @@ export function replaceAssistantForTurn<TMessage extends { id?: string; role: st
   return next
 }
 
-function isToolInvocationPart(part: Record<string, unknown>): part is Record<string, unknown> & {
-  toolInvocation: {
-    toolCallId?: string
-    toolName?: string
-    toolInput?: unknown
-    toolOutput?: unknown
-    state?: string
-  }
-} {
-  return typeof part.toolInvocation === 'object' && part.toolInvocation !== null
-}
-
-export function mergeLiveStreamingParts(
-  existingParts: Array<Record<string, unknown>>,
-  newParts: Array<Record<string, unknown>>,
-) {
-  let nextParts = existingParts
-  for (const part of newParts) {
-    const last = nextParts[nextParts.length - 1]
-    if (
-      part.type === 'reasoning' &&
-      last?.type === 'reasoning' &&
-      typeof part.text === 'string'
-    ) {
-      nextParts = [
-        ...nextParts.slice(0, -1),
-        {
-          ...last,
-          text: `${typeof last.text === 'string' ? last.text : ''}${part.text}`,
-          state: part.state ?? last.state,
-        },
-      ]
-      continue
-    }
-
-    if (isToolInvocationPart(part)) {
-      const incoming = part.toolInvocation
-      const toolCallId = incoming.toolCallId
-      if (toolCallId) {
-        const existingIdx = nextParts.findIndex(
-          (candidate) =>
-            isToolInvocationPart(candidate) &&
-            candidate.toolInvocation.toolCallId === toolCallId,
-        )
-        if (existingIdx >= 0) {
-          const existing = nextParts[existingIdx]!
-          if (isToolInvocationPart(existing)) {
-            nextParts = [
-              ...nextParts.slice(0, existingIdx),
-              {
-                type: 'tool-invocation',
-                toolInvocation: {
-                  ...existing.toolInvocation,
-                  ...incoming,
-                  toolName:
-                    incoming.toolName === 'unknown_tool'
-                      ? existing.toolInvocation.toolName
-                      : incoming.toolName,
-                  toolInput: incoming.toolInput ?? existing.toolInvocation.toolInput,
-                  toolOutput: incoming.toolOutput ?? existing.toolInvocation.toolOutput,
-                },
-              },
-              ...nextParts.slice(existingIdx + 1),
-            ]
-            continue
-          }
-        }
-      }
-    }
-
-    nextParts = [...nextParts, part]
-  }
-  return nextParts
-}
-
-export function applyLiveMessageDeltaParts(
-  existingParts: Array<Record<string, unknown>>,
-  delta: LiveMessageDelta,
-) {
-  let nextParts = existingParts
-  if (delta.textDelta) {
-    const last = nextParts[nextParts.length - 1]
-    if (last?.type === 'text') {
-      nextParts = [
-        ...nextParts.slice(0, -1),
-        {
-          ...last,
-          text: `${typeof last.text === 'string' ? last.text : ''}${delta.textDelta}`,
-        },
-      ]
-    } else {
-      nextParts = [...nextParts, { type: 'text', text: delta.textDelta }]
-    }
-  }
-  if (delta.newParts?.length) {
-    nextParts = mergeLiveStreamingParts(nextParts, delta.newParts)
-  }
-  return nextParts
-}
-
 /**
  * Merge flattened {@link ConversationMessagePart} deltas into an existing part list.
  *
- * Unlike {@link mergeLiveStreamingParts} (which operates on AI SDK UI parts with
- * `tool-invocation` wrappers), this works on the flattened shared part shape used
+ * This works on the flattened shared part shape used
  * by desktop streaming and persistence:
  *   - text: append to the trailing text part when present, otherwise push a new one
  *   - reasoning: append to the trailing streaming reasoning part, otherwise push
@@ -530,7 +529,7 @@ export function looksLikeStoredGenerationError(message: string): boolean {
   if (!text) return false
   if (text.length > 220) return false
   if (
-    /^(Generation failed\.?|generation_interrupted_|weekly_limit|premium_model|generation_not_allowed|insufficient_credits|storage_limit_exceeded|bandwidth_limit_exceeded)/i.test(
+    /^(Generation failed\.?|generation_interrupted_|weekly_limit|premium_model|generation_not_allowed|insufficient_credits|insufficient_budget|storage_limit_exceeded|bandwidth_limit_exceeded)/i.test(
       text,
     )
   ) {
@@ -548,7 +547,8 @@ export function looksLikeStoredGenerationError(message: string): boolean {
     text.includes('AI Gateway') ||
     text.includes('model provider') ||
     /gateway.*(auth|key|billing|quota|limit)|provider.*(blocked|billing|quota|limit)/i.test(text) ||
-    /model.*not found|not found.*model|model_not_found/i.test(text)
+    /model.*not found|not found.*model|model_not_found/i.test(text) ||
+    /no such subscription|resource_missing/i.test(text)
   ) {
     return true
   }
@@ -569,19 +569,29 @@ export function persistedGenerationErrorMessage(responseText: string | null | un
   return 'generation_interrupted_connection'
 }
 
+export const USAGE_EXHAUSTED_LABEL =
+  'You have used your allowance. Add credits in Account to continue.'
+
+export function isUsageExhaustedError(text: string | null | undefined): boolean {
+  if (!text) return false
+  return /insufficient_credits|insufficient_budget|no budget remaining|budget is exhausted|budget exhausted|paid budget is empty|add budget|top up your account|you('ve| have) used your allowance|allowance is (used|spent)|usage is spent|no such subscription|resource_missing/i.test(
+    text,
+  )
+}
+
 export function errorLabel(err: Error | null | undefined): string | null {
   if (!err) return null
   const message = err.message || ''
+  if (isUsageExhaustedError(message) || message.includes('Payment Required') || message.includes('payment required')) {
+    return USAGE_EXHAUSTED_LABEL
+  }
   if (
     message.includes('OpenRouter') ||
     message.includes('AI Gateway') ||
     message.includes('model provider') ||
     message.includes('rate-limited') ||
     message.includes('rate limit') ||
-    message.includes('spend limit') ||
-    message.includes('Payment Required') ||
-    message.includes('payment required') ||
-    message.includes('insufficient credits')
+    message.includes('spend limit')
   ) {
     return message
   }
@@ -589,7 +599,9 @@ export function errorLabel(err: Error | null | undefined): string | null {
   if (message.includes('weekly_limit')) return 'Weekly limit reached - upgrade to a paid plan for unlimited messages.'
   if (message.includes('premium_model')) return 'This model requires a paid plan.'
   if (message.includes('generation_not_allowed')) return 'This action requires a paid plan.'
-  if (message.includes('insufficient_credits')) return 'No budget remaining.'
+  if (message.includes('insufficient_credits') || message.includes('insufficient_budget')) {
+    return USAGE_EXHAUSTED_LABEL
+  }
   if (message.includes('storage_limit_exceeded')) return 'Overlay storage limit reached. Delete files or outputs, or upgrade your plan.'
   if (message.includes('bandwidth_limit_exceeded')) return 'File bandwidth limit reached for this billing period.'
   if (message.includes('generation_interrupted_server_timeout')) {

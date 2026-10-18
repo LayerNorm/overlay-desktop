@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect } from 'react'
+import { Brain, FileText, MessageSquare, PanelRightOpen, Maximize2 } from 'lucide-react'
 import {
   faviconUrl,
+  plainTextSnippet,
   prettyUrlPath,
   safeHttpUrl,
   webSourceDisplayKey,
@@ -10,18 +12,49 @@ import {
 } from '@overlay/chat-core'
 import { AppScreenSidePanel } from '@overlay/modules-react/shell'
 
+/** Whether the panel floats over the page or docks as a right-hand column. */
+export type PanelPresentation = 'floating' | 'sidebar'
+
+function PresentationToggle({
+  presentation,
+  onPresentationChange,
+}: {
+  presentation: PanelPresentation
+  onPresentationChange: (presentation: PanelPresentation) => void
+}) {
+  const next: PanelPresentation = presentation === 'floating' ? 'sidebar' : 'floating'
+  const label = presentation === 'floating' ? 'Dock as side panel' : 'Show as floating panel'
+  return (
+    <button
+      type="button"
+      onClick={() => onPresentationChange(next)}
+      className="rounded-md p-1.5 text-(--muted) transition-colors hover:bg-(--surface-subtle) hover:text-(--foreground)"
+      aria-label={label}
+      title={label}
+    >
+      {presentation === 'floating'
+        ? <PanelRightOpen size={15} strokeWidth={1.75} />
+        : <Maximize2 size={15} strokeWidth={1.75} />}
+    </button>
+  )
+}
+
 export function SourcesPanel({
   open,
   onClose,
   onOpenSource,
   sources,
   variant = 'inline',
+  presentation,
+  onPresentationChange,
 }: {
   open: boolean
   onClose: () => void
   onOpenSource?: (url: string) => void
   sources: WebSourceItem[]
   variant?: 'inline' | 'shell'
+  presentation?: PanelPresentation
+  onPresentationChange?: (presentation: PanelPresentation) => void
 }) {
   useEffect(() => {
     if (!open) return
@@ -33,61 +66,84 @@ export function SourcesPanel({
   }, [open, onClose])
 
   const shellPanel = variant === 'shell'
+  const presentationToggle = presentation && onPresentationChange ? (
+    <PresentationToggle presentation={presentation} onPresentationChange={onPresentationChange} />
+  ) : null
+  // Source rows follow the same open-in-Overlay flow as links inside a reply.
   const sourceList = (
-    <ul className="flex flex-col gap-1">
+    <ul className="flex flex-col gap-1" data-overlay-link-scope="">
       {sources.flatMap((source, idx) => {
-        const safeUrl = safeHttpUrl(source.url)
+        // Knowledge sources are in-app routes, not URLs: they skip the http
+        // guard, open in place, and carry a resource icon instead of a favicon.
+        const internal = source.origin === 'knowledge'
+        const internalHref = source.internalHref ?? source.url
+        const safeUrl = internal ? internalHref : safeHttpUrl(source.url)
         if (!safeUrl) return []
-        const site = webSourceDisplayKey(source.url)
-        const fav = faviconUrl(source.url)
-        const titleCandidate = source.title?.trim() || ''
+        const site = internal
+          ? (source.internalKind === 'memory' ? 'Memory' : source.internalKind === 'message' ? 'Conversation' : 'File')
+          : webSourceDisplayKey(source.url)
+        const fav = internal ? '' : faviconUrl(source.url)
+        const titleCandidate = plainTextSnippet(source.title)
+        const snippet = plainTextSnippet(source.snippet)
         let host = ''
-        try {
-          host = new URL(source.url).hostname.replace(/^www\./i, '')
-        } catch {
-          host = site
+        if (!internal) {
+          try {
+            host = new URL(source.url).hostname.replace(/^www\./i, '')
+          } catch {
+            host = site
+          }
         }
         const isTitleJustHost =
-          !titleCandidate ||
-          titleCandidate.toLowerCase() === host.toLowerCase() ||
-          titleCandidate.toLowerCase() === site.toLowerCase()
-        const displayTitle = isTitleJustHost ? host : titleCandidate
-        const subtext =
-          source.snippet?.trim() ||
-          (isTitleJustHost ? prettyUrlPath(source.url) : host)
+          !internal &&
+          (!titleCandidate ||
+            titleCandidate.toLowerCase() === host.toLowerCase() ||
+            titleCandidate.toLowerCase() === site.toLowerCase())
+        const displayTitle = internal
+          ? titleCandidate || site
+          : isTitleJustHost ? host : titleCandidate
+        const subtext = internal
+          ? snippet || (source.internalKind === 'memory' ? 'Saved memory' : source.internalKind === 'message' ? 'Past message' : 'Indexed file')
+          : snippet || (isTitleJustHost ? prettyUrlPath(source.url) : host)
         return (
-          <li key={`${source.url}-${idx}`}>
+          <li key={source.url}>
             <a
               href={safeUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+              {...(internal ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
               onClick={
-                onOpenSource
+                onOpenSource && !internal
                   ? (event) => {
                       event.preventDefault()
                       onOpenSource(safeUrl)
                     }
                   : undefined
               }
-              className="group block rounded-lg px-2 py-2 transition-colors hover:bg-[var(--surface-subtle)]"
+              className="group block rounded-lg px-2 py-2 transition-colors hover:bg-(--surface-subtle)"
             >
               <div className="flex min-w-0 items-start gap-2.5">
-                <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded bg-[var(--surface-elevated)] ring-1 ring-[var(--border)]">
-                  {fav ? (
+                <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-(--surface-elevated) ring-1 ring-(--border)">
+                  {internal ? (
+                    source.internalKind === 'memory' ? (
+                      <Brain size={12} strokeWidth={1.75} className="text-(--muted)" />
+                    ) : source.internalKind === 'message' ? (
+                      <MessageSquare size={12} strokeWidth={1.75} className="text-(--muted)" />
+                    ) : (
+                      <FileText size={12} strokeWidth={1.75} className="text-(--muted)" />
+                    )
+                  ) : fav ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={fav} alt="" className="h-3.5 w-3.5" width={14} height={14} />
                   ) : (
-                    <span className="text-[9px] font-semibold text-[var(--muted)]">
+                    <span className="text-[9px] font-semibold text-(--muted)">
                       {site.charAt(0).toUpperCase()}
                     </span>
                   )}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-medium leading-snug text-[var(--foreground)] group-hover:underline">
+                  <p className="truncate text-[13px] font-medium leading-snug text-(--foreground) group-hover:underline">
                     {displayTitle}
                   </p>
                   {subtext ? (
-                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-[var(--muted)]">
+                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-(--muted)">
                       {subtext}
                     </p>
                   ) : null}
@@ -108,8 +164,8 @@ export function SourcesPanel({
         closeLabel="Close sources"
         aria-label="Sources"
         aria-hidden={!open}
-        compactHeader
-        className="bg-[var(--sidebar-surface)]"
+        actions={presentationToggle}
+        className="bg-(--sidebar-surface)"
         bodyClassName="overflow-y-auto px-3 py-3"
       >
         {sourceList}
@@ -121,10 +177,10 @@ export function SourcesPanel({
     <aside
       aria-label="Sources"
       aria-hidden={!open}
-      className={`absolute inset-y-2 right-2 z-30 hidden w-[min(40vw,380px)] flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--sidebar-surface)] shadow-xl transition-[transform,opacity] duration-300 ease-[var(--overlay-ease)] md:flex ${
-        open
-          ? 'translate-x-0 opacity-100'
-          : 'pointer-events-none translate-x-[calc(100%+0.5rem)] opacity-0'
+      // Floating fades rather than slides, matching AppScreen's floating right
+      // panel so the two surfaces appear and disappear the same way.
+      className={`absolute inset-y-2 right-2 z-30 hidden w-[min(40vw,380px)] flex-col overflow-hidden rounded-xl border border-(--border) bg-(--sidebar-surface) shadow-xl transition-opacity duration-300 ease-(--overlay-ease) md:flex ${
+        open ? 'opacity-100' : 'pointer-events-none opacity-0'
       }`}
     >
       <div className="flex h-full w-[min(40vw,380px)] flex-col">
@@ -132,8 +188,9 @@ export function SourcesPanel({
           title="Sources"
           onClose={onClose}
           closeLabel="Close sources"
+          actions={presentationToggle}
           compactHeader
-          className="bg-[var(--sidebar-surface)]"
+          className="bg-(--sidebar-surface)"
           bodyClassName="overflow-y-auto px-3 py-3"
         >
           {sourceList}

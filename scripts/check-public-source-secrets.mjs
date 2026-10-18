@@ -66,7 +66,11 @@ try {
     'scripts/check-public-source-secrets.mjs',
     'scripts/verify-macos-artifact.mjs',
     'src/shared/security/telemetry-redaction.test.ts',
-    'src/shared/security/telemetry-redaction.ts'
+    'src/shared/security/telemetry-redaction.ts',
+    // Vendored verbatim from LayerNorm/overlay-web; upstream test fixtures
+    // carry example /Users/ paths that are not machine-specific secrets.
+    'packages/overlay-agent-bridge-protocol/src/agent-profile.test.ts',
+    'packages/overlay-agent-host/src/launchd.test.ts'
   ])
 
   for (const absolute of walk(snapshot)) {

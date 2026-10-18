@@ -33,6 +33,8 @@ export interface FileViewerProps {
   content: string
   url?: string
   operations?: FileViewerOperations
+  /** Injected fetch implementation so the presentational module does not call global fetch directly. */
+  fetchImpl?: typeof fetch
 }
 
 function previewSource(name: string, content: string, url?: string): string {
@@ -113,12 +115,26 @@ function parseCSV(raw: string): string[][] {
   return rows
 }
 
-const proseMarkdown =
-  'prose prose-sm max-w-2xl text-[var(--foreground)] prose-headings:font-semibold prose-headings:text-[var(--foreground)] prose-p:text-[var(--foreground)] prose-li:text-[var(--foreground)] prose-strong:text-[var(--foreground)] prose-a:text-blue-600 dark:prose-a:text-sky-400 prose-code:rounded prose-code:bg-[var(--surface-subtle)] prose-code:px-1 prose-code:text-[var(--foreground)] prose-pre:bg-[var(--surface-subtle)] prose-pre:text-[var(--foreground)] prose-blockquote:border-[var(--border)] prose-blockquote:text-[var(--muted)]'
+export const FILE_MARKDOWN_PROSE_CLASS =
+  'prose prose-sm max-w-2xl text-(--foreground) prose-headings:font-semibold prose-headings:text-[var(--foreground)] prose-p:text-[var(--foreground)] prose-li:text-[var(--foreground)] prose-strong:text-[var(--foreground)] prose-a:text-blue-600 dark:prose-a:text-sky-400 prose-code:rounded prose-code:bg-[var(--surface-subtle)] prose-code:px-1 prose-code:text-[var(--foreground)] prose-pre:bg-[var(--surface-subtle)] prose-pre:text-[var(--foreground)] prose-blockquote:border-[var(--border)] prose-blockquote:text-[var(--muted)]'
+
+export function FileMarkdown({
+  content,
+  className,
+}: {
+  content: string
+  className?: string
+}) {
+  return (
+    <div className={[FILE_MARKDOWN_PROSE_CLASS, className].filter(Boolean).join(' ')}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </div>
+  )
+}
 
 // ─── Async binary viewers ─────────────────────────────────────────────────────
 
-function DocumentViewer({ url }: { url: string }) {
+function DocumentViewer({ url, fetchImpl = fetch }: { url: string; fetchImpl?: typeof fetch }) {
   const [html, setHtml] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -128,7 +144,7 @@ function DocumentViewer({ url }: { url: string }) {
     const controller = new AbortController()
     setLoading(true)
     setError(null)
-    fetch(url, { signal: controller.signal })
+    fetchImpl(url, { signal: controller.signal })
       .then((r) => {
         if (!r.ok) throw new Error(`Failed to load (${r.status})`)
         return r.arrayBuffer()
@@ -153,11 +169,11 @@ function DocumentViewer({ url }: { url: string }) {
       cancelled = true
       controller.abort()
     }
-  }, [url])
+  }, [url, fetchImpl])
 
   if (loading) {
     return (
-      <div className="overlay-file-viewer overlay-file-viewer--document flex flex-1 flex-col items-center justify-center gap-3 p-8 text-[var(--muted)]">
+      <div className="overlay-file-viewer overlay-file-viewer--document flex flex-1 flex-col items-center justify-center gap-3 p-8 text-(--muted)">
         <Loader2 size={24} className="animate-spin" />
         <p className="text-xs">Loading document…</p>
       </div>
@@ -166,9 +182,9 @@ function DocumentViewer({ url }: { url: string }) {
 
   if (error) {
     return (
-      <div className="overlay-file-viewer overlay-file-viewer--document flex flex-1 flex-col items-center justify-center gap-3 p-8 text-[var(--muted)]">
+      <div className="overlay-file-viewer overlay-file-viewer--document flex flex-1 flex-col items-center justify-center gap-3 p-8 text-(--muted)">
         <FileType size={28} />
-        <p className="text-sm font-medium text-[var(--foreground)]">Could not load document</p>
+        <p className="text-sm font-medium text-(--foreground)">Could not load document</p>
         <p className="text-xs text-red-500">{error}</p>
       </div>
     )
@@ -177,7 +193,7 @@ function DocumentViewer({ url }: { url: string }) {
   return (
     <div className="overlay-file-viewer overlay-file-viewer--document flex-1 overflow-y-auto px-8 py-6">
       <div
-        className="prose prose-sm max-w-3xl text-[var(--foreground)] prose-headings:font-semibold prose-headings:text-[var(--foreground)] prose-p:text-[var(--foreground)] prose-li:text-[var(--foreground)] prose-strong:text-[var(--foreground)] prose-a:text-blue-600 dark:prose-a:text-sky-400 prose-code:rounded prose-code:bg-[var(--surface-subtle)] prose-code:px-1 prose-code:text-[var(--foreground)] prose-pre:bg-[var(--surface-subtle)] prose-pre:text-[var(--foreground)] prose-blockquote:border-[var(--border)] prose-blockquote:text-[var(--muted)]"
+        className="prose prose-sm max-w-3xl text-(--foreground) prose-headings:font-semibold prose-headings:text-[var(--foreground)] prose-p:text-[var(--foreground)] prose-li:text-[var(--foreground)] prose-strong:text-[var(--foreground)] prose-a:text-blue-600 dark:prose-a:text-sky-400 prose-code:rounded prose-code:bg-[var(--surface-subtle)] prose-code:px-1 prose-code:text-[var(--foreground)] prose-pre:bg-[var(--surface-subtle)] prose-pre:text-[var(--foreground)] prose-blockquote:border-[var(--border)] prose-blockquote:text-[var(--muted)]"
         dangerouslySetInnerHTML={{ __html: html ?? '' }}
       />
     </div>
@@ -195,7 +211,7 @@ function ViewerOperationButtons({
   const externalUrl = resolveSafeViewerUrl(url, 'external')
   if (!operations && !downloadUrl) return null
   const asset = { name, url: downloadUrl }
-  const buttonClass = 'inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--foreground)] transition-colors hover:bg-[var(--surface-subtle)]'
+  const buttonClass = 'inline-flex items-center gap-1.5 rounded-md border border-(--border) px-3 py-1.5 text-xs text-(--foreground) transition-colors hover:bg-(--surface-subtle)'
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-2">
@@ -222,153 +238,156 @@ function ViewerOperationButtons({
   )
 }
 
-export function FileViewer({ name, content, url, operations }: FileViewerProps) {
+export function FileViewer({ name, content, url, operations, fetchImpl }: FileViewerProps) {
   const type = getFileType(name)
   const source = previewSource(name, content, url)
 
-  if (type === 'markdown') {
-    return (
-      <div className="overlay-file-viewer overlay-file-viewer--markdown flex-1 overflow-y-auto px-8 py-6">
-        <div className={proseMarkdown}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-        </div>
-      </div>
-    )
-  }
-
-  if (type === 'text') {
-    return (
-      <div className="overlay-file-viewer overlay-file-viewer--text flex-1 overflow-y-auto px-8 py-6">
-        <pre className="text-sm leading-relaxed font-mono whitespace-pre-wrap text-[var(--foreground)]">
-          {content}
-        </pre>
-      </div>
-    )
-  }
-
-  if (type === 'html') {
-    return (
-      <div className="overlay-file-viewer overlay-file-viewer--html flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
-        <iframe
-          srcDoc={source}
-          sandbox={FILE_VIEWER_HTML_SANDBOX}
-          referrerPolicy="no-referrer"
-          className="min-h-0 flex-1 w-full border-none bg-white"
-          title={name}
-        />
-      </div>
-    )
-  }
-
-  if (type === 'csv') {
-    const rows = parseCSV(content)
-    const headers = rows[0] ?? []
-    const body = rows.slice(1)
-    return (
-      <div className="overlay-file-viewer overlay-file-viewer--csv flex-1 overflow-auto px-4 py-4">
-        <table className="border-collapse text-xs">
-          <thead>
-            <tr>
-              {headers.map((h, i) => (
-                <th
-                  key={i}
-                  className="whitespace-nowrap border border-[var(--border)] bg-[var(--surface-subtle)] px-3 py-2 text-left font-medium text-[var(--foreground)]"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {body.map((row, i) => (
-              <tr key={i} className={i % 2 === 0 ? '' : 'bg-[var(--surface-subtle)]/50'}>
-                {row.map((cell, j) => (
-                  <td
-                    key={j}
-                    className="max-w-md whitespace-pre-wrap break-words border border-[var(--border)] px-3 py-1.5 align-top text-[var(--muted)]"
-                  >
-                    {cell}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )
-  }
-
-  if (type === 'image') {
-    const mediaUrl = resolveSafeViewerUrl(source, 'media')
-    if (!mediaUrl) return <UnavailablePreview name={name} />
-    return (
-      <div className="overlay-file-viewer overlay-file-viewer--image flex flex-1 items-center justify-center overflow-auto bg-[var(--surface-subtle)] p-8">
-        {/* Shared web/Electron viewer; Next's image runtime is intentionally unavailable here. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={mediaUrl} alt={name} className="max-h-full max-w-full rounded-lg object-contain shadow-sm" />
-      </div>
-    )
-  }
-
-  if (type === 'audio') {
-    const mediaUrl = resolveSafeViewerUrl(source, 'media')
-    if (!mediaUrl) return <UnavailablePreview name={name} />
-    return (
-      <div className="overlay-file-viewer overlay-file-viewer--audio flex flex-1 flex-col items-center justify-center gap-6 p-8">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--surface-subtle)]">
-          <Music size={28} className="text-[var(--muted)]" />
-        </div>
-        <p className="text-sm font-medium text-[var(--foreground)]">{name}</p>
-        <audio controls src={mediaUrl} className="w-full max-w-lg" />
-      </div>
-    )
-  }
-
-  if (type === 'video') {
-    const mediaUrl = resolveSafeViewerUrl(source, 'media')
-    if (!mediaUrl) return <UnavailablePreview name={name} />
-    return (
-      <div className="overlay-file-viewer overlay-file-viewer--video flex flex-1 items-center justify-center overflow-hidden bg-black p-4">
-        <video controls src={mediaUrl} className="max-h-full max-w-full" />
-      </div>
-    )
-  }
-
+  if (type === 'markdown') return <MarkdownViewer content={content} />
+  if (type === 'text') return <TextViewer content={content} />
+  if (type === 'html') return <HtmlViewer name={name} source={source} />
+  if (type === 'csv') return <CsvViewer content={content} />
+  if (type === 'image') return <ImageViewer name={name} source={source} />
+  if (type === 'audio') return <AudioViewer name={name} source={source} />
+  if (type === 'video') return <VideoViewer name={name} source={source} />
   if (type === 'pdf') {
-    const iframeSrc = resolveSafeViewerUrl(source, 'pdf')
-    if (iframeSrc) {
-      return (
-        <div className="overlay-file-viewer overlay-file-viewer--pdf flex min-h-0 flex-1 flex-col overflow-hidden">
-          <iframe src={iframeSrc} sandbox="" referrerPolicy="no-referrer" className="min-h-0 flex-1 w-full border-none" title={name} />
-        </div>
-      )
-    }
-    if (content.trim()) {
-      return (
-        <div className="overlay-file-viewer overlay-file-viewer--pdf flex-1 overflow-y-auto px-8 py-6">
-          <p className="mb-4 max-w-2xl text-xs text-[var(--muted)]">
-            This PDF is stored as extracted text for search and the notebook (not the original layout).
-          </p>
-          <pre className="max-w-3xl whitespace-pre-wrap text-sm leading-relaxed text-[var(--foreground)]">
-            {content}
-          </pre>
-        </div>
-      )
-    }
     return (
-      <div className="overlay-file-viewer overlay-file-viewer--pdf flex flex-1 flex-col items-center justify-center gap-3 p-8 text-[var(--muted)]">
-        <FileType size={28} />
-        <p className="text-sm font-medium text-[var(--foreground)]">Could not load PDF preview</p>
-      </div>
+      <PdfViewer
+        name={name}
+        content={content}
+        iframeSrc={resolveSafeViewerUrl(source, 'pdf')}
+      />
     )
   }
-
   if (type === 'document') {
     const documentUrl = resolveSafeViewerUrl(url, 'document')
-    if (documentUrl) return <DocumentViewer url={documentUrl} />
+    if (documentUrl) return <DocumentViewer url={documentUrl} fetchImpl={fetchImpl} />
   }
+  return <BinaryViewer name={name} content={content} url={url} operations={operations} />
+}
 
-  // binary fallback
+function MarkdownViewer({ content }: { content: string }) {
+  return (
+    <div className="overlay-file-viewer overlay-file-viewer--markdown flex-1 overflow-y-auto px-8 py-6">
+      <FileMarkdown content={content} />
+    </div>
+  )
+}
+
+function TextViewer({ content }: { content: string }) {
+  return (
+    <div className="overlay-file-viewer overlay-file-viewer--text flex-1 overflow-y-auto px-8 py-6">
+      <pre className="text-sm leading-relaxed font-mono whitespace-pre-wrap text-(--foreground)">
+        {content}
+      </pre>
+    </div>
+  )
+}
+
+function HtmlViewer({ name, source }: { name: string; source: string }) {
+  return (
+    <div className="overlay-file-viewer overlay-file-viewer--html flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
+      <iframe
+        srcDoc={source}
+        sandbox={FILE_VIEWER_HTML_SANDBOX}
+        referrerPolicy="no-referrer"
+        className="min-h-0 flex-1 w-full border-none bg-white"
+        title={name}
+      />
+    </div>
+  )
+}
+
+function CsvViewer({ content }: { content: string }) {
+  const rows = parseCSV(content)
+  const headers = rows[0] ?? []
+  const body = rows.slice(1)
+  return (
+    <div className="overlay-file-viewer overlay-file-viewer--csv flex-1 overflow-auto px-4 py-4">
+      <table className="border-collapse text-xs">
+        <thead>
+          <tr>
+            {headers.map((h, i) => (
+              // Positional table headers mirror CSV column order — no stable key exists.
+              // react-doctor-disable-next-line react-doctor/no-array-index-as-key
+              <th
+                key={i}
+                className="whitespace-nowrap border border-(--border) bg-(--surface-subtle) px-3 py-2 text-left font-medium text-(--foreground)"
+              >
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {body.map((row, i) => (
+            // Positional table rows mirror CSV row order — no stable key exists.
+            // react-doctor-disable-next-line react-doctor/no-array-index-as-key
+            <tr key={i} className={i % 2 === 0 ? '' : 'bg-(--surface-subtle)/50'}>
+              {row.map((cell, j) => (
+                // Positional table cells mirror CSV column order — no stable key exists.
+                // react-doctor-disable-next-line react-doctor/no-array-index-as-key
+                <td
+                  key={j}
+                  className="max-w-md whitespace-pre-wrap wrap-break-word border border-(--border) px-3 py-1.5 align-top text-(--muted)"
+                >
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function ImageViewer({ name, source }: { name: string; source: string }) {
+  const mediaUrl = resolveSafeViewerUrl(source, 'media')
+  if (!mediaUrl) return <UnavailablePreview name={name} />
+  return (
+    <div className="overlay-file-viewer overlay-file-viewer--image flex flex-1 items-center justify-center overflow-auto bg-(--surface-subtle) p-8">
+      {/* Shared web/Electron viewer; Next's image runtime is intentionally unavailable here. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={mediaUrl} alt={name} className="max-h-full max-w-full rounded-lg object-contain shadow-xs" />
+    </div>
+  )
+}
+
+function AudioViewer({ name, source }: { name: string; source: string }) {
+  const mediaUrl = resolveSafeViewerUrl(source, 'media')
+  if (!mediaUrl) return <UnavailablePreview name={name} />
+  return (
+    <div className="overlay-file-viewer overlay-file-viewer--audio flex flex-1 flex-col items-center justify-center gap-6 p-8">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-(--surface-subtle)">
+        <Music size={28} className="text-(--muted)" />
+      </div>
+      <p className="text-sm font-medium text-(--foreground)">{name}</p>
+      <audio controls src={mediaUrl} className="w-full max-w-lg" />
+    </div>
+  )
+}
+
+function VideoViewer({ name, source }: { name: string; source: string }) {
+  const mediaUrl = resolveSafeViewerUrl(source, 'media')
+  if (!mediaUrl) return <UnavailablePreview name={name} />
+  return (
+    <div className="overlay-file-viewer overlay-file-viewer--video flex flex-1 items-center justify-center overflow-hidden bg-black p-4">
+      <video controls src={mediaUrl} className="max-h-full max-w-full" />
+    </div>
+  )
+}
+
+function BinaryViewer({
+  name,
+  content,
+  url,
+  operations,
+}: {
+  name: string
+  content: string
+  url?: string
+  operations?: FileViewerOperations
+}) {
   const ext = name.split('.').pop()?.toLowerCase() ?? ''
   const labels: Record<string, string> = {
     docx: 'Word Document', doc: 'Word Document',
@@ -381,28 +400,131 @@ export function FileViewer({ name, content, url, operations }: FileViewerProps) 
     ?? resolveSafeViewerUrl(content, 'download')
 
   return (
-    <div className="overlay-file-viewer overlay-file-viewer--binary flex flex-1 flex-col items-center justify-center gap-4 p-8 text-[var(--muted)]">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--surface-subtle)]">
+    <div className="overlay-file-viewer overlay-file-viewer--binary flex flex-1 flex-col items-center justify-center gap-4 p-8 text-(--muted)">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-(--surface-subtle)">
         {labels[ext] ? (
           <FileTypeIcon file={{ name, extension: ext }} size={30} framed />
         ) : (
-          <FileQuestion size={28} className="text-[var(--muted)]" />
+          <FileQuestion size={28} className="text-(--muted)" />
         )}
       </div>
       <div className="text-center">
-        <p className="text-sm font-medium text-[var(--foreground)]">{name}</p>
-        <p className="mt-1 text-xs text-[var(--muted-light)]">{labels[ext] ?? 'Binary file'} — preview not available</p>
+        <p className="text-sm font-medium text-(--foreground)">{name}</p>
+        <p className="mt-1 text-xs text-(--muted-light)">{labels[ext] ?? 'Binary file'} — preview not available</p>
       </div>
       <ViewerOperationButtons name={name} url={downloadUrl} operations={operations} />
     </div>
   )
 }
 
+function PdfViewer({
+  name,
+  content,
+  iframeSrc,
+}: {
+  name: string
+  content: string
+  iframeSrc?: string
+}) {
+  const [previewFailed, setPreviewFailed] = useState(false)
+  // iframeSrc seeds the initial view only — the viewer mounts per file.
+  // react-doctor-disable-next-line react-doctor/no-derived-useState
+  const [showText, setShowText] = useState(!iframeSrc)
+  const hasExtractedText = content.trim().length > 0
+  const showingText = !iframeSrc || showText || previewFailed
+
+  return (
+    <div className="overlay-file-viewer overlay-file-viewer--pdf flex min-h-0 flex-1 flex-col overflow-hidden">
+      {showingText ? (
+        hasExtractedText ? (
+          <PdfExtractedText content={content} previewFailed={previewFailed} />
+        ) : (
+          <PdfPreviewUnavailable />
+        )
+      ) : (
+        <iframe
+          src={iframeSrc}
+          referrerPolicy="no-referrer"
+          sandbox=""
+          className="min-h-0 flex-1 w-full border-none"
+          title={name}
+          onError={() => setPreviewFailed(true)}
+        />
+      )}
+      {iframeSrc ? (
+        <PdfViewerStatusBar
+          previewFailed={previewFailed}
+          hasExtractedText={hasExtractedText}
+          showingText={showingText}
+          onToggleText={() => {
+            setPreviewFailed(false)
+            setShowText((value) => !value)
+          }}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function PdfExtractedText({ content, previewFailed }: { content: string; previewFailed: boolean }) {
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
+      <p className="mb-4 max-w-2xl text-xs text-(--muted)">
+        {previewFailed
+          ? 'The PDF preview could not be displayed, so the extracted text is shown instead.'
+          : 'Extracted text fallback for this PDF.'}
+      </p>
+      <pre className="max-w-3xl whitespace-pre-wrap text-sm leading-relaxed text-(--foreground)">
+        {content}
+      </pre>
+    </div>
+  )
+}
+
+function PdfPreviewUnavailable() {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-8 text-(--muted)">
+      <FileType size={28} />
+      <p className="text-sm font-medium text-(--foreground)">Could not load PDF preview</p>
+    </div>
+  )
+}
+
+function PdfViewerStatusBar({
+  previewFailed,
+  hasExtractedText,
+  showingText,
+  onToggleText,
+}: {
+  previewFailed: boolean
+  hasExtractedText: boolean
+  showingText: boolean
+  onToggleText: () => void
+}) {
+  const status = previewFailed
+    ? hasExtractedText ? 'Showing extracted text' : 'PDF preview unavailable'
+    : hasExtractedText ? 'PDF preview' : 'No extracted text is available for this file.'
+  return (
+    <div className="flex shrink-0 items-center justify-between gap-3 border-t border-(--border) bg-(--surface-elevated) px-4 py-2 text-xs text-(--muted)">
+      <span>{status}</span>
+      {hasExtractedText ? (
+        <button
+          type="button"
+          className="shrink-0 rounded-md border border-(--border) px-2.5 py-1.5 text-(--foreground) transition-colors hover:bg-(--surface-subtle)"
+          onClick={onToggleText}
+        >
+          {showingText ? 'Try PDF preview' : 'Show extracted text'}
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
 function UnavailablePreview({ name }: { name: string }) {
   return (
-    <div className="overlay-file-viewer overlay-file-viewer--unavailable flex flex-1 flex-col items-center justify-center gap-3 p-8 text-[var(--muted)]">
+    <div className="overlay-file-viewer overlay-file-viewer--unavailable flex flex-1 flex-col items-center justify-center gap-3 p-8 text-(--muted)">
       <FileQuestion size={28} />
-      <p className="text-sm font-medium text-[var(--foreground)]">Could not safely preview {name}</p>
+      <p className="text-sm font-medium text-(--foreground)">Could not safely preview {name}</p>
     </div>
   )
 }
@@ -440,15 +562,15 @@ export function FileViewerPanel({
     <AppScreenShell
       className="overlay-file-viewer-panel flex min-h-0 flex-1 flex-col"
       header={
-        <AppScreenHeader className="px-6">
+        <AppScreenHeader>
           <div className="flex min-w-0 items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
               {headerLeft}
-              <span className="truncate text-sm font-medium text-[var(--foreground)]">{name}</span>
+              <span className="truncate text-sm font-medium text-(--foreground)">{name}</span>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {isSaving ? (
-                <span className="flex shrink-0 items-center gap-1 text-xs text-[var(--muted-light)]">Saving...</span>
+                <span className="flex shrink-0 items-center gap-1 text-xs text-(--muted-light)">Saving...</span>
               ) : null}
               <ViewerOperationButtons name={name} url={url} operations={operations} />
               {headerRight}
@@ -461,20 +583,28 @@ export function FileViewerPanel({
       {editable ? (
         <>
           <textarea
+            aria-label="File contents"
             value={content}
             onChange={(e) => onContentChange(e.target.value)}
             placeholder="Start typing..."
-            className="min-h-0 flex-1 resize-none bg-[var(--background)] px-8 py-6 font-mono text-sm leading-relaxed text-[var(--foreground)] outline-none placeholder:text-[var(--muted-light)]"
+            className="min-h-0 flex-1 resize-none bg-(--background) px-8 py-6 font-mono text-sm leading-relaxed text-(--foreground) outline-hidden placeholder:text-(--muted-light)"
           />
-          <div className="shrink-0 border-t border-[var(--border)] px-8 py-2 text-[11px] text-[var(--muted-light)]">
+          <div className="shrink-0 border-t border-(--border) px-8 py-2 text-[11px] text-(--muted-light)">
             Reference in chat with{' '}
-            <code className="rounded bg-[var(--surface-subtle)] px-1 py-0.5 font-mono text-[var(--foreground)]">
+            <code className="rounded-sm bg-(--surface-subtle) px-1 py-0.5 font-mono text-(--foreground)">
               @{name}
             </code>
           </div>
         </>
       ) : (
-        <FileViewer name={previewName ?? name} content={content} url={url} operations={operations} />
+        <FileViewer
+          // A stored binary must be classified by its real filename even when
+          // the backend also exposes an extracted-text classifier.
+          name={url && prefersUrlPreview(name) ? name : (previewName ?? name)}
+          content={content}
+          url={url}
+          operations={operations}
+        />
       )}
       </AppScreenBody>
     </AppScreenShell>
@@ -524,11 +654,11 @@ export function OutputViewer({
     <AppScreenShell
       className="overlay-output-viewer flex min-h-0 flex-1 flex-col"
       header={(
-        <AppScreenHeader className="px-4">
+        <AppScreenHeader>
           <div className="flex min-w-0 items-center gap-2">
             {headerLeft}
             <FileTypeIcon file={{ name, mimeType, extension: name.split('.').pop() }} size={16} />
-            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--foreground)]">{name || 'Output'}</span>
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-(--foreground)">{name || 'Output'}</span>
             <ViewerOperationButtons name={name || 'output'} url={safeDownloadUrl} operations={operations} />
           </div>
         </AppScreenHeader>
@@ -536,11 +666,11 @@ export function OutputViewer({
     >
       <AppScreenBody padding="none" maxWidth="none" scroll="hidden" className="flex min-h-0 flex-1 flex-col">
         {(metadata.length > 0 || prompt) ? (
-          <div className="shrink-0 border-b border-[var(--border)] px-6 py-3">
+          <div className="shrink-0 border-b border-(--border) px-6 py-3">
             {metadata.length > 0 ? (
-              <p className="text-xs text-[var(--muted-light)]">{metadata.join(' / ')}</p>
+              <p className="text-xs text-(--muted-light)">{metadata.join(' / ')}</p>
             ) : null}
-            {prompt ? <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--muted)]">{prompt}</p> : null}
+            {prompt ? <p className="mt-2 max-w-3xl text-sm leading-relaxed text-(--muted)">{prompt}</p> : null}
           </div>
         ) : null}
         <FileViewer name={name} content={content} url={url} operations={operations} />
