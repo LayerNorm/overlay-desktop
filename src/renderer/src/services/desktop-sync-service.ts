@@ -7,7 +7,7 @@ import {
   CHATS_CHANGED_EVENT
 } from '../utils/chatStorage'
 import { loadAuthSessionSecure, type AuthSession } from './auth-service'
-import { desktopAppResponse } from './app-api-client'
+import { desktopAppResponse, unwrapPaginatedData } from './app-api-client'
 
 const SYNC_STATE_KEY = 'overlay-desktop-sync-state-v1'
 const DEFAULT_SYNC_INTERVAL_MS = 30_000
@@ -605,6 +605,9 @@ class DesktopSyncService {
         ...(init.headers || {})
       }
     })
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status} ${path}`)
+    }
     return (await response.json()) as T
   }
 
@@ -884,11 +887,11 @@ class DesktopSyncService {
   }
 
   private async pullConversations(state: StoredSyncState, session: AuthSession): Promise<void> {
-    const remoteConversations = await this.authenticatedFetch<RemoteConversation[]>(
+    const remoteConversations = unwrapPaginatedData<RemoteConversation>(await this.authenticatedFetch<unknown>(
       `/api/v1/conversations?updatedSince=${state.watermarks.conversations}&includeDeleted=true`,
       { method: 'GET' },
       session
-    )
+    ))
 
     for (const remote of remoteConversations) {
       const localId =
@@ -939,11 +942,11 @@ class DesktopSyncService {
   }
 
   private async pullNotes(state: StoredSyncState, session: AuthSession): Promise<void> {
-    const remoteNotes = await this.authenticatedFetch<RemoteNote[]>(
+    const remoteNotes = unwrapPaginatedData<RemoteNote>(await this.authenticatedFetch<unknown>(
       `/api/v1/notes?updatedSince=${state.watermarks.notes}&includeDeleted=true`,
       { method: 'GET' },
       session
-    )
+    ))
 
     for (const remote of remoteNotes) {
       const localId =
@@ -979,11 +982,11 @@ class DesktopSyncService {
   }
 
   private async pullMemories(state: StoredSyncState, session: AuthSession): Promise<void> {
-    const remoteMemories = await this.authenticatedFetch<RemoteMemory[]>(
+    const remoteMemories = unwrapPaginatedData<RemoteMemory>(await this.authenticatedFetch<unknown>(
       `/api/v1/memory?raw=true&updatedSince=${state.watermarks.memories}&includeDeleted=true`,
       { method: 'GET' },
       session
-    )
+    ))
 
     const existingLocalIds = new Set(
       ((await window.bridge.memory.getAll()) as Array<{ id: string }>).map((memory) => memory.id)
