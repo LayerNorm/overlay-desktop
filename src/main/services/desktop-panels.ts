@@ -16,7 +16,17 @@ type PanelLayout = {
 const windows = new Map<Kind, BrowserWindow>()
 const layouts: Partial<Record<Kind, PanelLayout>> = {}
 const layoutPath = () => join(app.getPath('userData'), 'web-panel-layout.json')
+let watchingDisplays = false
 export function restorePanelLayout(): void {
+  if (!watchingDisplays) {
+    watchingDisplays = true
+    const restore = (): void => {
+      for (const [kind, window] of windows)
+        if (!window.isDestroyed()) window.setBounds(bounds(kind, window))
+    }
+    screen.on('display-removed', restore)
+    screen.on('display-metrics-changed', restore)
+  }
   try {
     if (existsSync(layoutPath()))
       Object.assign(layouts, JSON.parse(readFileSync(layoutPath(), 'utf8')))
@@ -42,12 +52,18 @@ export function restorePanelLayout(): void {
     /* Keep legacy files untouched. */
   }
 }
-function bounds(kind: Kind): PanelLayout {
-  const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea
+function bounds(kind: Kind, window?: BrowserWindow): PanelLayout {
+  const area = (
+    window
+      ? screen.getDisplayMatching(window.getBounds())
+      : screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  ).workArea
   const saved = layouts[kind]
-  const width = Math.min(area.width, Math.max(360, saved?.width || 440))
-  const height = Math.min(area.height, Math.max(300, saved?.height || 640))
-  const edge = saved?.edge ?? 'none'
+  const finite = (value: unknown, fallback: number): number =>
+    typeof value === 'number' && Number.isFinite(value) ? value : fallback
+  const width = Math.min(area.width, Math.max(360, finite(saved?.width, 440)))
+  const height = Math.min(area.height, Math.max(300, finite(saved?.height, 640)))
+  const edge = saved?.edge === 'left' || saved?.edge === 'right' ? saved.edge : 'none'
   return {
     width,
     height,
@@ -59,9 +75,12 @@ function bounds(kind: Kind): PanelLayout {
           ? area.x + area.width - width
           : Math.max(
               area.x,
-              Math.min(saved?.x ?? area.x + area.width - width - 20, area.x + area.width - width)
+              Math.min(
+                finite(saved?.x, area.x + area.width - width - 20),
+                area.x + area.width - width
+              )
             ),
-    y: Math.max(area.y, Math.min(saved?.y ?? area.y + 30, area.y + area.height - height))
+    y: Math.max(area.y, Math.min(finite(saved?.y, area.y + 30), area.y + area.height - height))
   }
 }
 function get(kind: Kind): BrowserWindow {
@@ -71,6 +90,9 @@ function get(kind: Kind): BrowserWindow {
     ...bounds(kind),
     title: kind === 'chat' ? 'Overlay Chat' : 'Overlay Notes',
     titleBarStyle: 'hidden',
+    transparent: true,
+    backgroundColor: '#00000000',
+    hasShadow: true,
     ...(process.platform === 'darwin' ? { type: 'panel' } : {}),
     alwaysOnTop: true,
     show: false,
@@ -87,7 +109,7 @@ function get(kind: Kind): BrowserWindow {
   window.on('resized', persist)
   window.on('close', (event) => {
     event.preventDefault()
-    window.hide()
+    desktopPanels.hide(kind)
   })
   return window
 }

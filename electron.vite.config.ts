@@ -3,6 +3,7 @@ import { cpSync, mkdirSync } from 'node:fs'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 export default defineConfig({
   main: {
+    define: { 'process.env.SENTRY_DSN': JSON.stringify(process.env.SENTRY_DSN ?? '') },
     plugins: [
       externalizeDepsPlugin({ exclude: ['@overlay/desktop-bridge'] }),
       {

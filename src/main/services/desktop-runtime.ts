@@ -43,6 +43,8 @@ import { modelDownloadService } from './model-download-service'
 import { cancelPendingNativeAuth } from './security/native-auth-service'
 import { safeStorageService } from './security/safe-storage-service'
 import { systemUtils } from './system-utils'
+import { configureDiagnostics } from './sentry'
+import { settingsService } from './settings-service'
 import { hotkeyManager, hasAccessibilityPermission } from './hotkey-manager'
 import { isAllowedStableUpgrade } from './auto-updater-policy'
 
@@ -243,7 +245,9 @@ const handlers: { [M in Method]: (input: Input<M>) => Promise<Results[M]> | Resu
     bridgeVersion: BRIDGE_VERSION,
     appVersion: app.getVersion(),
     platform: process.platform,
-    capabilities: [...capabilities]
+    capabilities: capabilities.filter(
+      (capability) => capability !== 'diagnostics' || Boolean(process.env.SENTRY_DSN)
+    )
   }),
   'window.openDataFolder': async () => {
     const result = await (await import('electron')).shell.openPath(app.getPath('userData'))
@@ -305,7 +309,13 @@ const handlers: { [M in Method]: (input: Input<M>) => Promise<Results[M]> | Resu
     return Promise.all(
       ids.map(async (id) => ({
         id,
-        name: id.replaceAll('_', ' '),
+        name: {
+          parakeet_v2: 'Parakeet v2',
+          parakeet_v3: 'Parakeet v3',
+          'openai_whisper-base': 'Whisper Base',
+          'openai_whisper-small': 'Whisper Small',
+          'openai_whisper-large-v3_turbo': 'Whisper Large v3 Turbo'
+        }[id],
         downloaded: id.startsWith('parakeet_')
           ? modelDownloadService.isParakeetModelInstalled(id as 'parakeet_v2')
           : await modelDownloadService.isModelInstalled(id)
@@ -347,6 +357,12 @@ const handlers: { [M in Method]: (input: Input<M>) => Promise<Results[M]> | Resu
   },
   'agentHost.stop': () => embeddedHostService.stop(),
   'agentHost.logs': () => embeddedHostService.getStatus().logTail,
+  'diagnostics.status': () => ({ enabled: settingsService.analyticsConsentEnabled }),
+  'diagnostics.configure': ({ enabled }) => {
+    if (enabled && !process.env.SENTRY_DSN)
+      throw new Error('Crash reporting is unavailable in this build.')
+    configureDiagnostics(enabled)
+  },
   'updates.status': () => update,
   'updates.check': async () => {
     if (app.isPackaged) await autoUpdater.checkForUpdates()

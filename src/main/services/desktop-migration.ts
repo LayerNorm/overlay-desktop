@@ -34,6 +34,12 @@ export async function migrateLegacyDesktopData(): Promise<void> {
     writeFileSync(marker, JSON.stringify({ version: 1, legacy: true, exportedAt: Date.now() }), {
       mode: 0o600
     })
+  } catch {
+    dialog.showErrorBox(
+      'Could not export old desktop data',
+      'Your existing local data is unchanged. Overlay will try the export again next time. You can open the preserved-data folder from Desktop settings.'
+    )
+    return
   } finally {
     window.destroy()
   }

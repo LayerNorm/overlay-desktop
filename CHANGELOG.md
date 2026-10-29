@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Add opt-in crash diagnostics, clamp floating panels after display changes, and
+  allow a failed legacy export to retry while the web app still opens.
+
 - Load the full web app by default with a versioned, origin-checked native bridge.
   Keep dictation, compact chat/notes panels, screenshots, notifications, local
   Agent Host controls and updates; retire duplicate chat/UI/provider code.
