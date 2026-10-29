@@ -13,7 +13,7 @@
     "test": "node --import tsx --test src/sidebar/UnifiedSidebar.test.tsx src/sidebar/settingsSearch.test.ts src/sidebar/SidebarAccountMenu.test.tsx src/workspaces/WorkspaceSwitcherView.test.tsx test/no-web-imports.test.mjs"
   },
   "dependencies": {
-    "@overlay/ui": "file:../overlay-ui"
+    "@overlay/ui": "0.0.1"
   },
   "peerDependencies": {
     "lucide-react": "^0.575.0",
