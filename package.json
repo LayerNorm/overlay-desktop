@@ -36,7 +36,7 @@
     "check:launch-controls": "node scripts/check-launch-controls.mjs",
     "check:dependencies:prod": "npm audit --omit=dev --audit-level=high",
     "check:dependencies:all": "npm audit --audit-level=high",
-    "license:check": "node scripts/check-licensing.mjs",
+    "license:check": "node --experimental-strip-types scripts/check-licensing.ts",
     "check:standalone": "node scripts/check-standalone-repository.mjs",
     "check:public-tree": "node scripts/check-public-tree.mjs",
     "public:export": "node scripts/create-public-export.mjs",

@@ -3,8 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-const readJson = (relative) =>
+const readJson = (relative: string): Record<string, any> =>
   JSON.parse(fs.readFileSync(path.join(root, relative), 'utf8'))
 const failures = []
 
@@ -32,7 +31,7 @@ const packageDirs = fs
   .map((entry) => entry.name)
   .sort()
 
-const privatePackageLicenses = new Map([
+const privatePackageLicenses = new Map<string, string>([
   ['overlay-shell-react', 'AGPL-3.0-only'],
   ['overlay-ui', 'AGPL-3.0-only']
 ])
@@ -131,8 +130,9 @@ console.log(
     `${audited} runtime dependency entries, and required notices verified.`
 )
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-function stringifyLicense(license) {
+function stringifyLicense(
+  license: string | Array<string | { type?: string }> | null | undefined
+): string {
   if (!license) return 'MISSING'
   if (typeof license === 'string') return license
   return (
@@ -143,8 +143,7 @@ function stringifyLicense(license) {
   )
 }
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-function isAcceptableLicenseExpression(value) {
+function isAcceptableLicenseExpression(value: string): boolean {
   const expression = stripOuterParens(value.trim())
   if (!expression || expression === 'MISSING') return false
   const orParts = expression.split(/\s+OR\s+/i).map(stripOuterParens)
@@ -154,8 +153,7 @@ function isAcceptableLicenseExpression(value) {
   return allowedLicenseIds.has(expression)
 }
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-function stripOuterParens(value) {
+function stripOuterParens(value: string): string {
   let current = value.trim()
   while (current.startsWith('(') && current.endsWith(')')) {
     current = current.slice(1, -1).trim()
@@ -163,15 +161,13 @@ function stripOuterParens(value) {
   return current
 }
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-function packageNameFromLockPath(packagePath) {
+function packageNameFromLockPath(packagePath: string): string {
   const tail = packagePath.split('node_modules/').filter(Boolean).pop()
   const parts = tail.split('/')
   return parts[0].startsWith('@') ? `${parts[0]}/${parts[1]}` : parts[0]
 }
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-function matchesPackagePattern(packageName, pattern) {
+function matchesPackagePattern(packageName: string, pattern: string): boolean {
   const escaped = pattern
     .split('*')
     .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
