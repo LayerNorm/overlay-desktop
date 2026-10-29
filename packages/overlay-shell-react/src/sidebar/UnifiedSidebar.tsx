@@ -165,7 +165,7 @@ function MoreMenu({ groups, collapsed }: { groups: ReadonlyArray<MoreItemGroup>;
           side="right"
           align="start"
           sideOffset={8}
-          className="shared-app-scope w-48 p-1"
+          className="w-48 p-1"
           onPointerEnter={hoverOpen}
           onPointerLeave={hoverClose}
           onOpenAutoFocus={(event) => { if (openedByHover.current) event.preventDefault() }}
@@ -425,7 +425,7 @@ export function UnifiedSidebar({
       aria-label="Sidebar"
       data-collapsed={collapsed}
       style={{ '--sidebar-resized-width': `${width}px` } as CSSProperties}
-      className={cn('shared-app-scope border-r-0', collapsed ? 'w-14' : 'w-(--sidebar-resized-width)', className, resizing && 'transition-none')}
+      className={cn('border-r-0', collapsed ? 'w-14' : 'w-(--sidebar-resized-width)', className, resizing && 'transition-none')}
     >
       {resizable && !collapsed ? <PanelResizeHandle edge="right" width={width} onResize={setWidth} onResizingChange={setResizing} minWidth={220} maxWidth={420} label="Resize left sidebar" /> : null}
       <SidebarHeaderBar brand={brand} collapsed={collapsed} onCollapsedChange={onCollapsedChange} onSearch={settingsNav ? null : onSearch} />

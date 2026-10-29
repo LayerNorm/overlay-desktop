@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import { createContext, useContext, type AnchorHTMLAttributes, type ComponentType, type ReactNode } from 'react'
 import type { PanelScope } from './types'
 

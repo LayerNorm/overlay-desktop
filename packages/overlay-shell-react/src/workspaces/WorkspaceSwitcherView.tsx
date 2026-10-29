@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import { unstyledButton } from '@overlay/ui/control-reset'
 
 import { type ReactNode, type RefObject } from 'react'
@@ -132,7 +131,7 @@ function WorkspaceSwitcherMenu({
       side={isFooter ? 'top' : 'bottom'}
       align={compact && !isFooter ? 'end' : 'start'}
       aria-label={isFooter ? 'Workspace and account' : 'Workspaces'}
-      className="shared-app-scope w-[min(280px,calc(100vw-16px))] p-1 text-(--foreground)"
+      className="w-[min(280px,calc(100vw-16px))] p-1"
     >
       <CollapsibleSection
         label="Workspaces"

@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import type { ReactNode } from 'react'
 import { unstyledButton } from '@overlay/ui/control-reset'
 import { LogOut, Settings, UserRound } from 'lucide-react'

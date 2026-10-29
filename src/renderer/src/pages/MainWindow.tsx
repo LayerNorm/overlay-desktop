@@ -627,58 +627,60 @@ export function MainWindow({
         }
       />
 
-      <ShellAdapterProvider value={desktopShellAdapter}>
-        <UnifiedSidebar
-          brand={
-            <span className="flex items-baseline gap-[0.4em] font-serif text-[15px] text-(--foreground)">
-              <OverlayMark size={8} className="translate-y-[0.1em]" />
-              <span>overlay</span>
-            </span>
-          }
-          collapsed={shellNav.collapsed}
-          onCollapsedChange={shellNav.setCollapsed}
-          items={shellItems}
-          panelKind={activeTool === 'home' ? null : activeTool}
-          panelNav={sidebarPanelNav}
-          sectionActions={{
-            chat: { label: 'New chat', onClick: handleNewChat },
-            agents: { label: 'New agent', onClick: handleNewAgent },
-            threads: { label: 'New thread', onClick: handleNewChat },
-            files: { label: 'Add file', onClick: handleAddFile },
-            projects: { label: 'New project', onClick: handleNewProject },
-            automations: { label: 'New automation', onClick: handleNewAutomation },
-            browser: { label: 'New tab', onClick: handleNewBrowserTab }
-          }}
-          renderSection={renderSidebarSection}
-          onSearch={() => {
-            if (activeTool === 'files') setFilesSearchOpen(true)
-            else if (activeTool === 'browser') setBrowserSearchOpen(true)
-            else {
-              setActiveTool('chat')
-              setChatSearchOpen(true)
+      <div className="shared-app-scope h-full shrink-0">
+        <ShellAdapterProvider value={desktopShellAdapter}>
+          <UnifiedSidebar
+            brand={
+              <span className="flex items-baseline gap-[0.4em] font-serif text-[17px]">
+                <OverlayMark size={8.5} className="-translate-y-[0.02em]" />
+                <span>overlay</span>
+              </span>
             }
-          }}
-          scope={shellNav.scope}
-          moreGroups={DESKTOP_MORE_GROUPS}
-          settingsGroups={DESKTOP_SETTINGS_GROUPS}
-          account={
-            <DesktopWorkspaceSwitcher
-              onOpenAccount={() => {
-                shellNav.setSettingsSection('account')
-                onOpenSettings?.('account')
-              }}
-              onOpenSettings={() => {
-                shellNav.setSettingsSection('general')
-                onOpenSettings?.('general')
-              }}
-              onSignOut={() => onSignOut?.()}
-            />
-          }
-          keyboardShortcut
-          resizable
-          className="desktop-shell-controls h-full shrink-0"
-        />
-      </ShellAdapterProvider>
+            collapsed={shellNav.collapsed}
+            onCollapsedChange={shellNav.setCollapsed}
+            items={shellItems}
+            panelKind={activeTool === 'home' ? null : activeTool}
+            panelNav={sidebarPanelNav}
+            sectionActions={{
+              chat: { label: 'New chat', onClick: handleNewChat },
+              agents: { label: 'New agent', onClick: handleNewAgent },
+              threads: { label: 'New thread', onClick: handleNewChat },
+              files: { label: 'Add file', onClick: handleAddFile },
+              projects: { label: 'New project', onClick: handleNewProject },
+              automations: { label: 'New automation', onClick: handleNewAutomation },
+              browser: { label: 'New tab', onClick: handleNewBrowserTab }
+            }}
+            renderSection={renderSidebarSection}
+            onSearch={() => {
+              if (activeTool === 'files') setFilesSearchOpen(true)
+              else if (activeTool === 'browser') setBrowserSearchOpen(true)
+              else {
+                setActiveTool('chat')
+                setChatSearchOpen(true)
+              }
+            }}
+            scope={shellNav.scope}
+            moreGroups={DESKTOP_MORE_GROUPS}
+            settingsGroups={DESKTOP_SETTINGS_GROUPS}
+            account={
+              <DesktopWorkspaceSwitcher
+                onOpenAccount={() => {
+                  shellNav.setSettingsSection('account')
+                  onOpenSettings?.('account')
+                }}
+                onOpenSettings={() => {
+                  shellNav.setSettingsSection('general')
+                  onOpenSettings?.('general')
+                }}
+                onSignOut={() => onSignOut?.()}
+              />
+            }
+            keyboardShortcut
+            resizable
+            className="desktop-shell-controls h-full shrink-0"
+          />
+        </ShellAdapterProvider>
+      </div>
 
       <div
         style={{

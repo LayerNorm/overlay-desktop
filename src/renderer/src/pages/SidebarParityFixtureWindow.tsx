@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bot, File, Folder, Home, MessageSquare, Mic, MoreHorizontal, Workflow } from 'lucide-react'
+import {
+  ArrowLeft,
+  Bot,
+  FileText,
+  Globe,
+  Home,
+  MessageSquare,
+  Mic,
+  Puzzle,
+  Workflow,
+} from 'lucide-react'
 import { OverlayMark } from '@overlay/ui'
 import {
   SidebarAccountMenu,
@@ -22,10 +32,10 @@ const items: PrimaryRailItem[] = [
   { id: 'agents', label: 'Agents', icon: Bot, onSelect: () => undefined },
   { id: 'chat', label: 'Chats', icon: MessageSquare, onSelect: () => undefined },
   { id: 'automations', label: 'Automations', icon: Workflow, onSelect: () => undefined },
-  { id: 'files', label: 'Files', icon: Folder, onSelect: () => undefined },
-  { id: 'extensions', label: 'Extensions', icon: File, onSelect: () => undefined },
+  { id: 'files', label: 'Files', icon: FileText, onSelect: () => undefined },
+  { id: 'extensions', label: 'Extensions', icon: Puzzle, onSelect: () => undefined },
   { id: 'voice', label: 'Voice', icon: Mic, onSelect: () => undefined },
-  { id: 'browser', label: 'Browser', icon: MoreHorizontal, onSelect: () => undefined },
+  { id: 'browser', label: 'Browser', icon: Globe, onSelect: () => undefined },
 ]
 
 const workspaces: ShellWorkspace[] = [
@@ -86,7 +96,7 @@ export function SidebarParityFixtureWindow(): React.ReactElement<any> {
           {
             id: 'settings-close',
             label: 'Back to app',
-            icon: MoreHorizontal,
+            icon: ArrowLeft,
             onSelect: () => undefined,
           },
         ]
@@ -159,28 +169,36 @@ export function SidebarParityFixtureWindow(): React.ReactElement<any> {
       data-theme={dark ? 'dark' : 'light'}
       className="flex h-screen bg-(--background) text-(--foreground)"
     >
-      <ShellAdapterProvider value={desktopShellAdapter}>
-        <UnifiedSidebar
-          brand={
-            <span className="flex items-baseline gap-[0.4em] font-serif text-[15px] text-(--foreground)">
-              <OverlayMark size={8} className="translate-y-[0.1em]" />
-              overlay
-            </span>
-          }
-          collapsed={collapsed}
-          onCollapsedChange={setCollapsed}
-          items={fixtureItems}
-          panelKind={panelKind}
-          panelNav={panelNav}
-          renderSection={renderSection}
-          scope="personal"
-          moreGroups={DESKTOP_MORE_GROUPS}
-          settingsGroups={DESKTOP_SETTINGS_GROUPS}
-          account={account}
-          keyboardShortcut
-          resizable
-        />
-      </ShellAdapterProvider>
+      <div className="shared-app-scope h-full shrink-0">
+        <ShellAdapterProvider value={desktopShellAdapter}>
+          <UnifiedSidebar
+            brand={
+              <span className="flex items-baseline gap-[0.4em] font-serif text-[17px]">
+                <OverlayMark size={8.5} className="-translate-y-[0.02em]" />
+                overlay
+              </span>
+            }
+            collapsed={collapsed}
+            onCollapsedChange={setCollapsed}
+            items={fixtureItems}
+            panelKind={panelKind}
+            panelNav={panelNav}
+            sectionActions={{
+              chat: { label: 'New chat', onClick: () => undefined },
+              agents: { label: 'New agent', onClick: () => undefined },
+              automations: { label: 'New automation', onClick: () => undefined },
+              files: { label: 'New file', onClick: () => undefined },
+            }}
+            renderSection={renderSection}
+            scope="personal"
+            moreGroups={DESKTOP_MORE_GROUPS}
+            settingsGroups={DESKTOP_SETTINGS_GROUPS}
+            account={account}
+            keyboardShortcut
+            resizable
+          />
+        </ShellAdapterProvider>
+      </div>
       <main className="flex-1 p-6">
         <h1 className="text-lg">{state}</h1>
       </main>
