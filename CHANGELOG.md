@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Use an ephemeral signing keychain with its own password for macOS CI, and
+  explain cloud dictation plan limits in the native controls.
+
 - Add opt-in crash diagnostics, clamp floating panels after display changes, and
   allow a failed legacy export to retry while the web app still opens.
 

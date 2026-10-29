@@ -37,7 +37,7 @@
     "build:parakeet": "bash scripts/build-parakeet-bundle.sh",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:mac": "npm run build:mac:ci",
-    "build:mac:ci": "npm run build && electron-builder --mac --arm64 --publish never",
+    "build:mac:ci": "node scripts/build-macos-ci.mjs",
     "verify:mac-artifact": "node scripts/verify-macos-artifact.mjs",
     "typecheck": "npm run check:no-provider-sdks && npm run typecheck:node",
     "test": "vitest run",

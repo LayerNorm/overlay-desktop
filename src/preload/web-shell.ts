@@ -11,7 +11,12 @@ const origin = originArg?.slice('--overlay-origin='.length)
 if (process.isMainFrame && origin && location.origin === origin) {
   const bridge: DesktopBridge = {
     handshake: () => ipcRenderer.invoke(BRIDGE_CHANNEL, 'handshake', undefined),
-    call: (method, input) => ipcRenderer.invoke(BRIDGE_CHANNEL, method, input),
+    call: (method, input) =>
+      ipcRenderer.invoke(BRIDGE_CHANNEL, method, input).catch((error: Error) => {
+        throw new Error(
+          error.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '')
+        )
+      }),
     on: <E extends keyof Events>(event: E, callback: (value: Events[E]) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, name: string, value: Events[E]) => {
         if (name === event) callback(value)

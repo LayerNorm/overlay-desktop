@@ -181,7 +181,18 @@ async function transcribeAudio(
         redirect: 'error',
         signal: AbortSignal.timeout(120_000)
       })
-    if (!response.ok) throw new Error(`Cloud dictation failed (${response.status}).`)
+    if (!response.ok) {
+      const failure = await response.json().catch(() => null)
+      if (failure?.error === 'hosted_transcription_requires_paid_plan')
+        throw new Error(
+          'Cloud dictation requires a paid plan. Choose a local model in Desktop settings to dictate on this Mac.'
+        )
+      if (failure?.error === 'transcription_limit_exceeded')
+        throw new Error(
+          'Your cloud dictation allowance is used up. Choose a local model in Desktop settings.'
+        )
+      throw new Error(`Cloud dictation failed (${response.status}).`)
+    }
     const result = await response.json()
     if (typeof result.text !== 'string') throw new Error('Invalid transcription response.')
     return { text: result.text }

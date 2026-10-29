@@ -48,3 +48,8 @@ release environments. Binary publication remains gated by the release checklist;
 source validation alone does not approve publication. CI saves the compiled shell
 with source provenance for interactive QA without rebuilding on the laptop. See [release process](guides/RELEASE_PROCESS.md)
 and [security policy](SECURITY.md).
+
+The macOS CI wrapper imports the existing signing certificate into an ephemeral
+keychain using a separate random keychain password, then passes `CSC_KEYCHAIN`
+to electron-builder. It removes the certificate file and keychain after use.
+Signing and notarization remain in CI; the publication gate remains separate.
