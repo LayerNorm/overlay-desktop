@@ -15,7 +15,7 @@ pins the origin used for navigation, permissions and the typed bridge. Remote
 pages have no Node access. SSO opens in your normal browser and transfers a
 one-time PKCE-bound session into the persistent app cookie partition.
 
-Settings → Desktop configures native features. Default shortcuts are Option+Space
+Settings → Desktop configures native features. Default shortcuts are Option+Space (tap to toggle, hold to talk)
 for dictation, Command+. for chat and Command+/ for notes. Local WhisperKit and
 Parakeet models work offline after downloading; cloud dictation uses your Overlay
 account and its existing billing checks. No provider key is stored in the desktop.
@@ -45,5 +45,6 @@ are retired. No local content is uploaded or deleted automatically.
 
 Official macOS builds use the existing signed/notarized workflow and protected
 release environments. Binary publication remains gated by the release checklist;
-source validation alone does not approve publication. See [release process](guides/RELEASE_PROCESS.md)
+source validation alone does not approve publication. CI saves the compiled shell
+with source provenance for interactive QA without rebuilding on the laptop. See [release process](guides/RELEASE_PROCESS.md)
 and [security policy](SECURITY.md).
