@@ -55,7 +55,8 @@
     "electron-log": "^5.4.3",
     "electron-updater": "^6.3.9",
     "zod": "^4.6.7",
-    "@overlay/desktop-bridge": "0.0.1"
+    "@overlay/desktop-bridge": "0.0.1",
+    "uiohook-napi": "^1.5.4"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

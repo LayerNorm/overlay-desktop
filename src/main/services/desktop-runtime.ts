@@ -3,6 +3,7 @@ import {
   BrowserWindow,
   ipcMain,
   globalShortcut,
+  powerMonitor,
   Notification,
   desktopCapturer,
   screen,
@@ -41,12 +42,16 @@ import { modelDownloadService } from './model-download-service'
 import { startNativeSignIn, cancelPendingNativeAuth } from './security/native-auth-service'
 import { safeStorageService } from './security/safe-storage-service'
 import { systemUtils } from './system-utils'
+import { hotkeyManager, hasAccessibilityPermission } from './hotkey-manager'
 import { isAllowedStableUpgrade } from './auto-updater-policy'
 
 const defaults = { dictation: 'Alt+Space', chat: 'CommandOrControl+.', notes: 'CommandOrControl+/' }
 const keys = { ...defaults }
+let holdEnabled = false
 let model = 'cloud'
 let recording = false
+let processing = false
+let transcriptionBusy = false
 let recordingTarget: 'composer' | 'system' = 'composer'
 let update: UpdateStatus = {
   state: app.isPackaged ? 'idle' : 'development',
@@ -79,11 +84,8 @@ async function authenticated(): Promise<void> {
 export function clearNativeSession(): void {
   lastSessionCheck = 0
   sessionAuthenticated = false
-  sessionEpoch++
-  recording = false
-  hud?.webContents.send('recorder:cancel')
-  hud?.hide()
-  emitDesktopEvent('transcription.cancel', undefined)
+  hotkeyManager.cancelRecording(false)
+  cancelRecording()
   cancelPendingNativeAuth()
   safeStorageService.clearAuthSession()
   embeddedHostService.stopImmediately()
@@ -92,28 +94,37 @@ export function clearNativeSession(): void {
 }
 function registerShortcut(id: keyof typeof defaults, accelerator: string): void {
   const previous = keys[id]
-  if (previous === accelerator && globalShortcut.isRegistered(accelerator)) return
+  if (id !== 'dictation' && previous === accelerator && globalShortcut.isRegistered(accelerator))
+    return
   if (Object.entries(keys).some(([key, value]) => key !== id && value === accelerator))
     throw new Error('Shortcut is already used by another Overlay action.')
-  if (
-    !globalShortcut.register(accelerator, () => {
-      void (id === 'dictation' && model !== 'cloud' ? Promise.resolve() : authenticated())
-        .then(() => {
-          if (id === 'dictation') {
-            if (recording) stopRecording()
-            else startRecording('system', model)
-          } else desktopPanels.toggle(id)
-        })
-        .catch(() => {})
-    })
-  )
+  const apply = (value: string): boolean => {
+    if (id === 'dictation') {
+      hotkeyManager.unregisterHotkey('push-to-talk')
+      if (!hotkeyManager.registerHotkey('transcription', value)) return false
+      holdEnabled =
+        hasAccessibilityPermission() && hotkeyManager.registerHotkey('push-to-talk', value)
+      return true
+    }
+    return hotkeyManager.registerPanelHotkey(id === 'notes' ? 'notebook' : 'chat', value)
+  }
+  if (!apply(accelerator)) {
+    apply(previous)
     throw new Error('Shortcut is unavailable. Choose another combination.')
-  if (previous !== accelerator) globalShortcut.unregister(previous)
+  }
   keys[id] = accelerator
   persist()
 }
+function cancelRecording(): void {
+  processing = false
+  sessionEpoch++
+  recording = false
+  hud?.webContents.send('recorder:cancel')
+  hud?.hide()
+  emitDesktopEvent('transcription.cancel', undefined)
+}
 function startRecording(target: 'system' | 'composer', selectedModel: string): void {
-  if (recording) throw new Error('Dictation is already running.')
+  if (recording || processing || transcriptionBusy) throw new Error('Dictation is already running.')
   recording = true
   recordingTarget = target
   if (target === 'system') {
@@ -129,10 +140,23 @@ function startRecording(target: 'system' | 'composer', selectedModel: string): v
 function stopRecording(): void {
   if (!recording) return
   recording = false
-  if (recordingTarget === 'system') hud?.webContents.send('recorder:stop')
-  else emitDesktopEvent('transcription.stop', undefined)
+  if (recordingTarget === 'system') {
+    processing = true
+    hud?.webContents.send('recorder:stop')
+  } else emitDesktopEvent('transcription.stop', undefined)
 }
 async function transcribe(input: Input<'transcription.transcribe'>): Promise<{ text: string }> {
+  if (transcriptionBusy) throw new Error('Dictation is still processing.')
+  transcriptionBusy = true
+  try {
+    return await transcribeAudio(input)
+  } finally {
+    transcriptionBusy = false
+  }
+}
+async function transcribeAudio(
+  input: Input<'transcription.transcribe'>
+): Promise<{ text: string }> {
   if (input.model === 'cloud') {
     await authenticated()
     const form = new FormData()
@@ -243,13 +267,22 @@ const handlers: { [M in Method]: (input: Input<M>) => Promise<Results[M]> | Resu
     desktopPanels.toggle(kind)
   },
   'panels.setDocked': ({ kind, edge }) => desktopPanels.setDocked(kind, edge),
-  'transcription.status': () => ({
-    recording,
-    model,
-    microphone: systemPreferences.getMediaAccessStatus('microphone'),
-    accessibility:
-      process.platform !== 'darwin' || systemPreferences.isTrustedAccessibilityClient(false)
-  }),
+  'transcription.status': () => {
+    if (!recording && !holdEnabled && hasAccessibilityPermission()) {
+      try {
+        registerShortcut('dictation', keys.dictation)
+      } catch {
+        /* Keep toggle dictation available. */
+      }
+    }
+    return {
+      recording,
+      model,
+      microphone: systemPreferences.getMediaAccessStatus('microphone'),
+      accessibility:
+        process.platform !== 'darwin' || systemPreferences.isTrustedAccessibilityClient(false)
+    }
+  },
   'transcription.configure': ({ model: next }) => {
     model = next
     persist()
@@ -381,6 +414,37 @@ export function registerDesktopRuntime(): void {
       if (exclusive) exclusiveCalls.delete(method)
     }
   })
+  hotkeyManager.initialize(
+    {
+      onRecordingStart: () => {
+        const epoch = sessionEpoch
+        void (model === 'cloud' ? authenticated() : Promise.resolve())
+          .then(() => {
+            if (epoch === sessionEpoch && hotkeyManager.getRecordingState().isRecording)
+              startRecording('system', model)
+          })
+          .catch(() => hotkeyManager.cancelRecording())
+      },
+      onRecordingStop: () => stopRecording(),
+      onRecordingCancel: () => cancelRecording()
+    },
+    () => true
+  )
+  hotkeyManager.initializePanelCallbacks({
+    onPanelToggle: (panel) => {
+      if (panel === 'browser') return
+      void authenticated()
+        .then(() => desktopPanels.toggle(panel === 'notebook' ? 'notes' : 'chat'))
+        .catch(() => {})
+    }
+  })
+  powerMonitor.on('resume', () => hotkeyManager.recoverHotkeys())
+  powerMonitor.on('unlock-screen', () => hotkeyManager.recoverHotkeys())
+  const health = setInterval(() => {
+    hotkeyManager.ensureHotkeysRegistered()
+    hotkeyManager.ensureReleaseMonitor()
+  }, 60_000)
+  health.unref()
   for (const id of Object.keys(defaults) as (keyof typeof defaults)[]) {
     try {
       registerShortcut(id, keys[id])
@@ -441,18 +505,20 @@ export function registerDesktopRuntime(): void {
       return result
     } finally {
       recording = false
+      processing = false
       hud.hide()
     }
   })
   ipcMain.on('recorder:cancel', (event) => {
     if (hud && event.sender === hud.webContents) {
       recording = false
+      processing = false
       hud.hide()
     }
   })
   app.on('before-quit', () => {
     embeddedHostService.stopImmediately()
-    globalShortcut.unregisterAll()
+    hotkeyManager.unregisterAll()
     parakeetService.stopServer()
     whisperKitService.stopServer()
   })
