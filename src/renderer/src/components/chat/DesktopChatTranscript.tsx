@@ -6,7 +6,6 @@ import {
   type WebSourceItem
 } from '@overlay/chat-core'
 import {
-  ChatReactConfigContext,
   type AttachmentPreview,
   type AttachmentPreviewOpenOptions
 } from '@overlay/chat-react'
@@ -22,7 +21,6 @@ import { resolveDesktopExchangeActionTargets } from './desktopTranscriptActions'
 import { panelThemeToSharedCssVars } from './themeBridge'
 import type { ChatModel, Message } from './types'
 
-import overlayLogoUrl from '../../../../../resources/logos/overlay-chat-mark.png'
 
 export interface DesktopChatTranscriptProps {
   messages: Message[]
@@ -52,8 +50,6 @@ const DESKTOP_TRANSCRIPT_PRESENTATION: ChatTranscriptPresentation = {
   showModelLabel: true,
   maxContentWidth: '56rem'
 }
-
-const DESKTOP_CHAT_REACT_CONFIG = { toolLogoUrl: overlayLogoUrl }
 
 const ACTIVE_RESPONSE_STATUSES = new Set<ChatExchangeStatus>([
   'submitted',
@@ -106,7 +102,7 @@ export function DesktopChatTranscript({
     (modelId: string) => modelNames.get(modelId) ?? modelId,
     [modelNames]
   )
-  const scopeStyle = useMemo(() => panelThemeToSharedCssVars(theme, overlayLogoUrl), [theme])
+  const scopeStyle = useMemo(() => panelThemeToSharedCssVars(theme), [theme])
   const resolvedPresentation = useMemo(
     () => ({ ...DESKTOP_TRANSCRIPT_PRESENTATION, ...presentation }),
     [presentation]
@@ -238,7 +234,6 @@ export function DesktopChatTranscript({
   const transcriptActions = useMemo(() => ({ renderExchange }), [renderExchange])
 
   return (
-    <ChatReactConfigContext.Provider value={DESKTOP_CHAT_REACT_CONFIG}>
       <div
         className="overlay-chat-surface shared-chat-scope min-w-0"
         data-theme={theme.isDark ? 'dark' : 'light'}
@@ -256,6 +251,5 @@ export function DesktopChatTranscript({
           />
         </div>
       </div>
-    </ChatReactConfigContext.Provider>
   )
 }

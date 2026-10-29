@@ -1,3 +1,4 @@
+import { BrandLockup } from '@overlay/ui'
 import React, { useState, useEffect } from 'react'
 import { OnboardingStepProps } from '../types'
 import { getContainerStyle } from '../styles'
@@ -220,9 +221,7 @@ export function PermissionsStep({
             fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
           }}
         >
-          <span style={{ fontFamily: "'Libre Baskerville', Georgia, serif", fontWeight: 400 }}>
-            overlay
-          </span>{' '}
+          <BrandLockup />{' '}
           needs permissions to work
         </h2>
         <p

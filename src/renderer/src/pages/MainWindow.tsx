@@ -11,7 +11,7 @@ import {
   Puzzle,
   Workflow
 } from 'lucide-react'
-import { OverlayMark } from '@overlay/ui'
+import { BrandLockup } from '@overlay/ui'
 import {
   ShellAdapterProvider,
   UnifiedSidebar,
@@ -631,10 +631,7 @@ export function MainWindow({
         <ShellAdapterProvider value={desktopShellAdapter}>
           <UnifiedSidebar
             brand={
-              <span className="flex items-baseline gap-[0.4em] font-serif text-[17px]">
-                <OverlayMark size={8.5} className="-translate-y-[0.02em]" />
-                <span>overlay</span>
-              </span>
+              <BrandLockup className="text-[17px] text-(--foreground)" />
             }
             collapsed={shellNav.collapsed}
             onCollapsedChange={shellNav.setCollapsed}
@@ -740,19 +737,7 @@ export function MainWindow({
                     gap: '4px'
                   }}
                 >
-                  <OverlayMark size={44} className="mb-1" />
-                  <span
-                    style={{
-                      fontFamily: "'Libre Baskerville', Georgia, serif",
-                      fontSize: '28px',
-                      fontWeight: 400,
-                      color: theme.text,
-                      letterSpacing: '-0.5px',
-                      lineHeight: 1
-                    }}
-                  >
-                    overlay
-                  </span>
+                  <BrandLockup className="text-[28px]" style={{ color: theme.text }} />
                   <p
                     style={{
                       fontFamily: "'Libre Baskerville', Georgia, serif",

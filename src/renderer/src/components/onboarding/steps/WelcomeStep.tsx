@@ -1,7 +1,8 @@
+import { BrandLockup } from '@overlay/ui'
 import React from 'react'
 import { OnboardingStepProps } from '../types'
 import { getContainerStyle, getButtonStyle, applyButtonHover, resetButtonHover } from '../styles'
-import logoImage from '../../../../../../resources/logos/logo-big-no-bg.png'
+import { OnboardingMark } from '../OnboardingMark'
 
 export function WelcomeStep({
   theme,
@@ -26,9 +27,9 @@ export function WelcomeStep({
         }}
       >
         {/* Logo */}
-        <img
-          src={logoImage}
-          alt="Overlay Logo"
+        <OnboardingMark
+          size={80}
+          color={theme.text}
           style={{
             width: '80px',
             height: '80px',
@@ -54,7 +55,7 @@ export function WelcomeStep({
             opacity: 0
           }}
         >
-          overlay
+          <BrandLockup />
         </h1>
         {/* Tagline */}
         <p

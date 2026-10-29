@@ -153,15 +153,6 @@
   }
 
   /*
- * The canonical chat stylesheet defines a pulsing stream marker using
- * --overlay-mark-logo-url. Point it to the desktop's bundled logo asset.
- * The actual URL is set inline by the theme bridge; this is a fallback.
- */
-  .shared-chat-scope {
-    --overlay-mark-logo-url: var(--desktop-overlay-logo-url, url(''));
-  }
-
-  /*
  * Base typography for the shared chat surface. Shared components rely on the
  * host page providing a sans-serif base; without this, text inherited the
  * browser's default serif (Times New Roman). Sizes match the web chat

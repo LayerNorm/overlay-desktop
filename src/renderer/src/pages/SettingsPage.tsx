@@ -13,7 +13,7 @@ import { WorkspaceSettings } from '../components/settings/WorkspaceSettings'
 import { ModelsSettings } from '../components/settings/ModelsSettings'
 import { MemoryListPage } from './MemoryListPage'
 import { getTheme } from '../utils/theme'
-import { OverlayMark } from '@overlay/ui'
+import { BrandLockup } from '@overlay/ui'
 import {
   ShellAdapterProvider,
   UnifiedSidebar,
@@ -108,10 +108,7 @@ export function SettingsPage({
       <ShellAdapterProvider value={desktopShellAdapter}>
         <UnifiedSidebar
           brand={
-            <span className="flex items-baseline gap-[0.4em] font-serif text-[15px] text-(--foreground)">
-              <OverlayMark size={8} className="translate-y-[0.1em]" />
-              <span>overlay</span>
-            </span>
+            <BrandLockup className="text-[15px] text-(--foreground)" />
           }
           collapsed={shellNav.collapsed}
           onCollapsedChange={shellNav.setCollapsed}

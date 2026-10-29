@@ -2,24 +2,24 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { OVERLAY_LOGO_SRC } from '@overlay/chat-core'
-import { ChatReactConfigContext } from '../../context/chat-react-config'
 import { ToolLineLogo } from './tool-rail'
 
-test('tool rail uses the host-provided Overlay logo URL', () => {
-  const markup = renderToStaticMarkup(
-    <ChatReactConfigContext.Provider value={{ toolLogoUrl: 'app://overlay-logo.png' }}>
-      <ToolLineLogo />
-    </ChatReactConfigContext.Provider>,
-  )
+test('every trace step uses the SVG O mark in the trace icon slot, not a raster logo', () => {
+  const markup = renderToStaticMarkup(<ToolLineLogo />)
 
-  assert.match(markup, /src="app:\/\/overlay-logo\.png"/)
-  assert.match(markup, /width="8"/)
-  assert.match(markup, /height="8"/)
-  assert.match(markup, /size-2/)
+  assert.doesNotMatch(markup, /<img/)
+  assert.match(markup, /data-slot="trace-icon"/)
+  assert.match(markup, /<svg/)
+  assert.match(markup, /size-\[0\.5em\]/)
+  assert.match(markup, /width="6.5"/)
+  assert.match(markup, /aria-hidden="true"/)
 })
 
-test('tool rail retains the web logo fallback', () => {
-  const markup = renderToStaticMarkup(<ToolLineLogo />)
-  assert.ok(markup.includes(`src="${OVERLAY_LOGO_SRC}"`))
+test('only running trace steps move their eyes', () => {
+  const idle = renderToStaticMarkup(<ToolLineLogo />)
+  const running = renderToStaticMarkup(<ToolLineLogo running />)
+
+  assert.match(idle, /overlay-mark--none/)
+  assert.doesNotMatch(idle, /overlay-mark--look/)
+  assert.match(running, /overlay-mark--look/)
 })

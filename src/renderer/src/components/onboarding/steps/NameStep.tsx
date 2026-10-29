@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { OnboardingTheme, saveUserProfile, loadUserProfile } from '../types'
 import { getContainerStyle, getInputStyle } from '../styles'
-import logoImage from '../../../../../../resources/logos/logo-big-no-bg.png'
+import { OnboardingMark } from '../OnboardingMark'
 
 interface NameStepProps {
   theme: OnboardingTheme
@@ -46,9 +46,9 @@ export function NameStep({
   return (
     <div style={containerStyle}>
       <div style={{ textAlign: 'center', maxWidth: '400px' }}>
-        <img
-          src={logoImage}
-          alt="Overlay Logo"
+        <OnboardingMark
+          size={48}
+          color={theme.text}
           style={{
             width: '48px',
             height: '48px',

@@ -385,30 +385,6 @@
   text-underline-offset: 0.18em;
 }
 
-@keyframes overlayChatStreamMarkerPulse {
-  0%,
-  100% {
-    opacity: 0.5;
-    transform: scale(0.82);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.04);
-  }
-}
-
-/* Keep the active-response cue visible for people who reduce spatial motion.
-   This variant changes opacity only; it does not scale or move the mark. */
-@keyframes overlayChatStreamMarkerReducedPulse {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
 /* Loading copy advances like a compact mechanical reel: most of each beat is
    still, with a short upward transition between words. The duplicated final
    word makes the loop seam visually identical to its first frame. */
@@ -446,8 +422,6 @@
   display: inline-flex;
   width: 0.5rem;
   flex: 0 0 0.5rem;
-  transform-origin: 50% 0.5625rem;
-  animation: overlayChatStreamMarkerPulse 1.3s ease-in-out infinite;
 }
 
 :where(.overlay-chat-surface) .overlay-stream-marker {
@@ -456,14 +430,14 @@
   height: 0.95em;
   margin-left: 0.35em;
   vertical-align: -0.12em;
-  background-image: var(--overlay-mark-logo-url, none);
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
-  animation: overlayChatStreamMarkerPulse 1.3s ease-in-out infinite;
   pointer-events: none;
   min-width: 14px;
   min-height: 14px;
+}
+
+:where(.overlay-chat-surface) .overlay-stream-marker > svg {
+  width: 100%;
+  height: 100%;
 }
 
 :where(.overlay-chat-surface) .overlay-stream-marker--standalone,
@@ -539,7 +513,6 @@
 :where(.overlay-chat-surface)
   .markdown-content--streaming
   .overlay-stream-marker {
-  animation: overlayChatStreamMarkerPulse 1.3s ease-in-out infinite;
   opacity: 1;
 }
 
@@ -731,7 +704,6 @@
   :where(.overlay-chat-surface)
     .markdown-content--streaming
     .overlay-stream-marker {
-    animation: overlayChatStreamMarkerReducedPulse 1.8s ease-in-out infinite;
     transform: none;
   }
 

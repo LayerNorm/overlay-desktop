@@ -1,10 +1,74 @@
 {
   "overlay-ui": {
     "repo": "LayerNorm/overlay-web",
-    "ref": "abd3962fa581c8a5946f566195d79ae2c1ec9967"
+    "ref": "abd3962fa581c8a5946f566195d79ae2c1ec9967",
+    "brandSync": {
+      "repo": "LayerNorm/overlay-web",
+      "ref": "75a519852c3d5660cca4a22bf55a6ec0f3004340",
+      "files": [
+        "src/components/orb/OverlayMark.tsx",
+        "src/components/orb/BrandLockup.tsx",
+        "src/stories/AiElements.stories.tsx"
+      ],
+      "adaptedFiles": [
+        "src/index.ts",
+        "src/styles.css"
+      ],
+      "removedFiles": [
+        "src/components/orb/Orb.tsx"
+      ]
+    }
   },
   "overlay-shell-react": {
     "repo": "LayerNorm/overlay-web",
-    "ref": "ba9ea2a0740981d4a9e6f99fd0d6e7ceb2dae7fc"
+    "ref": "ba9ea2a0740981d4a9e6f99fd0d6e7ceb2dae7fc",
+    "brandSync": {
+      "ref": "75a519852c3d5660cca4a22bf55a6ec0f3004340",
+      "adaptedFiles": [
+        "src/sidebar/UnifiedSidebar.test.tsx"
+      ]
+    }
+  },
+  "overlay-chat-react": {
+    "repo": "LayerNorm/overlay-web",
+    "brandSync": {
+      "ref": "75a519852c3d5660cca4a22bf55a6ec0f3004340",
+      "files": [
+        "src/components/BrandMark.tsx",
+        "src/components/exchange/tool-rail.tsx",
+        "src/components/exchange/tool-rail.test.tsx"
+      ],
+      "adaptedFiles": [
+        "src/components/MarkdownMessage.tsx",
+        "src/components/transcript/ExchangeLoadingState.tsx",
+        "src/styles/chat-surface.css",
+        "src/components/transcript/ExchangeLoadingState.test.tsx",
+        "src/styles/overlay-theme.css",
+        "src/components/exchange/browser-tool-block.tsx",
+        "src/components/exchange/memory-tool-block.tsx",
+        "src/components/exchange/reasoning-block.tsx",
+        "src/components/exchange/tool-call-rows.tsx",
+        "src/components/exchange/web-search-tool-block.tsx"
+      ]
+    }
+  },
+  "overlay-modules-react": {
+    "repo": "LayerNorm/overlay-web",
+    "brandSync": {
+      "ref": "75a519852c3d5660cca4a22bf55a6ec0f3004340",
+      "adaptedFiles": [
+        "src/notes/agent-panel.tsx",
+        "src/notes/editor.tsx"
+      ]
+    }
+  },
+  "overlay-app-core": {
+    "repo": "LayerNorm/overlay-web",
+    "brandSync": {
+      "ref": "75a519852c3d5660cca4a22bf55a6ec0f3004340",
+      "adaptedFiles": [
+        "src/app-shell.ts"
+      ]
+    }
   }
 }

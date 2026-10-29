@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import type { NotebookAgentUiItem } from '@overlay/app-core'
 import { Send } from 'lucide-react'
+import { OverlayMark } from '@overlay/ui'
 import { AppScreenSidePanel } from '../shell'
 
 export interface NotebookAgentPanelProps {
@@ -48,11 +49,7 @@ export function NotebookAgentPanel({
           if (item.type === 'thinking') {
             return (
               <div key={idx} className="flex items-center gap-2 text-xs text-[var(--muted)]">
-                <span
-                  className="overlay-stream-marker overlay-stream-marker--standalone h-4 w-4"
-                  aria-label={item.text}
-                  role="img"
-                />
+                <OverlayMark size={16} motion="look" label={item.text} />
               </div>
             )
           }
@@ -66,7 +63,7 @@ export function NotebookAgentPanel({
               <div key={idx} className="flex w-full max-w-[min(100%,36rem)] items-stretch gap-2.5 py-1 text-[13px] leading-snug">
                 <div className="relative mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
                   <div className="relative z-[1] shrink-0 rounded-full bg-[var(--background)] p-px">
-                    {logo}
+                    {logo ?? <OverlayMark size={14} motion={isRunning ? 'look' : 'none'} label="" />}
                   </div>
                 </div>
                 <span className={isRunning ? 'tool-line-shimmer' : 'text-[var(--tool-line-label)]'}>

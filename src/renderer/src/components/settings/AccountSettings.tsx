@@ -1,3 +1,4 @@
+import { BrandLockup } from '@overlay/ui'
 import { ReactElement, useState, useEffect, useCallback } from 'react'
 import { Theme } from '../../utils/theme'
 import { SettingsRow } from '../ui/SettingsRow'
@@ -1042,7 +1043,7 @@ export function AccountSettings({ theme, onSignOut }: AccountSettingsProps): Rea
             fontFamily: 'ui-monospace, SFMono-Regular, SF Mono, Menlo, monospace'
           }}
         >
-          <span style={{ fontFamily: "'Libre Baskerville', Georgia, serif" }}>overlay</span> v
+          <BrandLockup /> v
           {currentVersion || '...'}
         </span>
       </div>

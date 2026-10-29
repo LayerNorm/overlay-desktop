@@ -41,7 +41,7 @@ export function WebSearchToolBlock({
     return (
       <div className="w-full px-1 py-0.5">
         <div className="flex max-w-[min(100%,36rem)] items-stretch gap-2.5 py-0.5 text-[13px] leading-snug">
-          <ToolLogoColumn connectTop={connectTop} connectBottom={connectBottom} />
+          <ToolLogoColumn connectTop={connectTop} connectBottom={connectBottom} running={running} />
           <span className="min-w-0 flex-1 text-red-600">{label} — couldn’t complete</span>
         </div>
       </div>
@@ -52,7 +52,7 @@ export function WebSearchToolBlock({
     <div className="w-full px-1 py-0.5">
       <div className="max-w-[min(100%,36rem)]">
         <div className="flex items-stretch gap-2.5 py-0.5 text-[13px] leading-snug">
-          <ToolLogoColumn connectTop={connectTop} connectBottom={connectBottom} />
+          <ToolLogoColumn connectTop={connectTop} connectBottom={connectBottom} running={running} />
           <div className="min-w-0 flex-1">
             <div className="flex min-h-4 flex-wrap items-center gap-x-2 gap-y-1">
               <span className={running ? 'tool-line-shimmer' : 'text-[var(--tool-line-label)]'}>

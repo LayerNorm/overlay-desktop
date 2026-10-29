@@ -1,3 +1,4 @@
+import { BrandLockup } from '@overlay/ui'
 import React, { useEffect, useState } from 'react'
 import { OnboardingTheme } from '../types'
 import {
@@ -84,9 +85,7 @@ export function MicrophoneStep({
             'microphone access was denied'
           ) : (
             <>
-              <span style={{ fontFamily: "'Libre Baskerville', Georgia, serif", fontWeight: 400 }}>
-                overlay
-              </span>{' '}
+              <BrandLockup />{' '}
               needs microphone access to transcribe your voice
             </>
           )}

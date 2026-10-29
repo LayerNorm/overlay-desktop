@@ -31,7 +31,6 @@ import { panelThemeToSharedCssVars } from '../components/chat/themeBridge'
 import { usePanelTheme } from '../hooks/usePanelTheme'
 import { DesktopNotebookEditor } from '../features/notebook/DesktopNotebookEditor'
 import { createDesktopNotebookRepository } from '../features/notebook/desktopNotebookRepository'
-import overlayLogoUrl from '../../../../resources/logos/overlay-chat-mark.png'
 
 function readPanelSettings(): {
   opacity: number
@@ -409,7 +408,7 @@ export function NotebookPanel(): React.ReactElement<any> {
         onMouseLeave={() => setIsPanelHovered(false)}
         className="shared-app-scope relative flex h-full w-full flex-col overflow-hidden"
         style={{
-          ...panelThemeToSharedCssVars(theme, overlayLogoUrl),
+          ...panelThemeToSharedCssVars(theme),
           boxSizing: 'border-box',
           background: frameVisible
             ? `linear-gradient(${theme.surfaceBg}, ${theme.surfaceBg}), ${theme.panelBg}`
