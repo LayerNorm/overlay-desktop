@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { findRuntimeLicenseException } from './license-exceptions.ts'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const readJson = (relative: string): Record<string, any> =>
@@ -107,12 +108,7 @@ for (const [packagePath, metadata] of Object.entries(lock.packages ?? {})) {
   const license = stringifyLicense(metadata.license ?? metadata.licenses)
   if (isAcceptableLicenseExpression(license)) continue
   const packageName = packageNameFromLockPath(packagePath)
-  const exception = allowlist.find(
-    (entry) =>
-      matchesPackagePattern(packageName, entry.package) &&
-      entry.licenses.includes(license) &&
-      entry.reason.trim()
-  )
+  const exception = findRuntimeLicenseException(packageName, license, allowlist)
   if (!exception) {
     failures.push(`${packagePath} has unreviewed runtime license "${license}"`)
   }
@@ -165,12 +161,4 @@ function packageNameFromLockPath(packagePath: string): string {
   const tail = packagePath.split('node_modules/').filter(Boolean).pop()
   const parts = tail.split('/')
   return parts[0].startsWith('@') ? `${parts[0]}/${parts[1]}` : parts[0]
-}
-
-function matchesPackagePattern(packageName: string, pattern: string): boolean {
-  const escaped = pattern
-    .split('*')
-    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .join('.*')
-  return new RegExp(`^${escaped}$`).test(packageName)
 }
