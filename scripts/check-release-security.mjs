@@ -33,7 +33,7 @@ if (lockfiles.join(',') !== 'package-lock.json') {
 }
 
 for (const [name, expected] of Object.entries({
-  electron: '39.8.10',
+  electron: '42.11.18',
   'electron-builder': '26.15.3',
   '@electron/fuses': '2.1.3',
   axios: '1.21.0',
