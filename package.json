@@ -50,6 +50,7 @@
     "dev": "electron-vite dev",
     "chat-parity:dev": "OVERLAY_CHAT_PARITY_FIXTURE=1 electron-vite dev",
     "file-parity:dev": "OVERLAY_FILE_PARITY_FIXTURE=1 electron-vite dev",
+    "sidebar-parity:dev": "OVERLAY_SIDEBAR_PARITY_FIXTURE=1 electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:ax-helper": "bash scripts/build-ax-helper.sh",

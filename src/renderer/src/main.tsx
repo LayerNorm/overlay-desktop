@@ -8,6 +8,7 @@ import './styles/shared-chat.css'
 const fixtureWindow = new URLSearchParams(window.location.search).get('window')
 const isChatParityFixture = import.meta.env.DEV && fixtureWindow === 'chat-parity-fixture'
 const isFileParityFixture = import.meta.env.DEV && fixtureWindow === 'file-parity-fixture'
+const isSidebarParityFixture = import.meta.env.DEV && fixtureWindow === 'sidebar-parity-fixture'
 
 // Global font-family fallback so the whole desktop UI uses the system font
 // instead of falling back to Times New Roman when inline styles are missing.
@@ -28,13 +29,17 @@ const setDocumentTheme = (darkMode: boolean): void => {
   document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
 }
 
-try {
-  const settings = JSON.parse(localStorage.getItem('overlay-settings') ?? '{}') as {
-    darkMode?: unknown
+if (isSidebarParityFixture && new URLSearchParams(window.location.search).has('theme')) {
+  setDocumentTheme(new URLSearchParams(window.location.search).get('theme') === 'dark')
+} else {
+  try {
+    const settings = JSON.parse(localStorage.getItem('overlay-settings') ?? '{}') as {
+      darkMode?: unknown
+    }
+    setDocumentTheme(settings.darkMode !== false)
+  } catch {
+    setDocumentTheme(true)
   }
-  setDocumentTheme(settings.darkMode !== false)
-} catch {
-  setDocumentTheme(true)
 }
 
 window.addEventListener('overlay:settings-changed', (event) => {
@@ -64,6 +69,10 @@ const root = createRoot(document.getElementById('root')!)
 if (isFileParityFixture) {
   void import('./pages/FileParityFixtureWindow').then(({ FileParityFixtureWindow }) => {
     root.render(<FileParityFixtureWindow />)
+  })
+} else if (isSidebarParityFixture) {
+  void import('./pages/SidebarParityFixtureWindow').then(({ SidebarParityFixtureWindow }) => {
+    root.render(<SidebarParityFixtureWindow />)
   })
 } else if (isChatParityFixture) {
   void Promise.all([
