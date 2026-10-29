@@ -98,3 +98,12 @@ export async function openExternal(url: string): Promise<void> {
     window.open(parsed.href, '_blank', 'noopener,noreferrer')
   }
 }
+
+/** Stop native work even when sign-out happens outside the workspace shell. */
+export async function notifyDesktopSignedOut(): Promise<void> {
+  const bridge = getDesktopBridge()
+  if (!bridge) return
+  try {
+    if ((await bridge.handshake()).capabilities.includes('auth')) await bridge.call('auth.signedOut', undefined)
+  } catch { /* Native cleanup must never prevent the normal web sign-out. */ }
+}
