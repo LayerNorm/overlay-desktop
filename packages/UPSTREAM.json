@@ -50,6 +50,14 @@
         "src/components/exchange/tool-call-rows.tsx",
         "src/components/exchange/web-search-tool-block.tsx"
       ]
+    },
+    "toolMarkSizeSync": {
+      "repo": "LayerNorm/overlay-web",
+      "ref": "75e818bc853ed96c2cdefc65e319ce612ffce909",
+      "files": [
+        "src/components/exchange/tool-rail.tsx",
+        "src/components/exchange/tool-rail.test.tsx"
+      ]
     }
   },
   "overlay-modules-react": {
