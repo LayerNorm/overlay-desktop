@@ -110,13 +110,15 @@ export function SidebarParityFixtureWindow(): React.ReactElement<any> {
         ? ['Planning session', 'Research follow-up']
         : ['Atlas', 'Nova']
       : ['Untitled conversation', 'Design review', 'Project notes']
+    const Icon = panelKind === 'agents' ? Bot : MessageSquare
     return (
-      <div className="space-y-1 px-2 pb-2">
+      <div className="space-y-1 pb-2">
         {values.map((value) => (
           <div
             key={value}
-            className="truncate rounded-md px-2 py-2 text-xs text-(--foreground) hover:bg-(--surface-subtle)"
+            className="flex h-8 min-w-0 items-center gap-2.5 truncate rounded-md px-2 text-sm text-(--foreground) hover:bg-(--surface-subtle)"
           >
+            <Icon size={16} className="mx-1 shrink-0" aria-hidden />
             {value}
           </div>
         ))}
@@ -190,6 +192,7 @@ export function SidebarParityFixtureWindow(): React.ReactElement<any> {
               files: { label: 'New file', onClick: () => undefined },
             }}
             renderSection={renderSection}
+            onSearch={() => undefined}
             scope="personal"
             moreGroups={DESKTOP_MORE_GROUPS}
             settingsGroups={DESKTOP_SETTINGS_GROUPS}

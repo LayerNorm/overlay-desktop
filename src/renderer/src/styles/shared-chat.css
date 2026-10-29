@@ -205,6 +205,15 @@
     border-width: 0;
   }
 
+  :where(.shared-app-scope, [data-radix-popper-content-wrapper]) :where(:focus) {
+    outline: none;
+  }
+
+  :where(.shared-app-scope, [data-radix-popper-content-wrapper]) :where(:focus-visible) {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--muted-light);
+  }
+
   :where([data-radix-popper-content-wrapper])
     :where(h1, h2, h3, h4, h5, h6, p, ul, ol, blockquote, pre, hr) {
     margin: 0;
