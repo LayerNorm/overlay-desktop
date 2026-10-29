@@ -28,6 +28,7 @@ import {
 } from '../../../packages/overlay-desktop-bridge/src/index'
 import {
   getWebShellOrigin,
+  startWebShellSignIn,
   getMainWindow,
   remoteWindows,
   openExternally,
@@ -39,7 +40,7 @@ import { embeddedHostService } from './embedded-host-service'
 import { parakeetService } from './parakeet-service'
 import { whisperKitService } from './whisperkit-service'
 import { modelDownloadService } from './model-download-service'
-import { startNativeSignIn, cancelPendingNativeAuth } from './security/native-auth-service'
+import { cancelPendingNativeAuth } from './security/native-auth-service'
 import { safeStorageService } from './security/safe-storage-service'
 import { systemUtils } from './system-utils'
 import { hotkeyManager, hasAccessibilityPermission } from './hotkey-manager'
@@ -252,7 +253,7 @@ const handlers: { [M in Method]: (input: Input<M>) => Promise<Results[M]> | Resu
   'window.setBadgeCount': ({ count }) => {
     app.setBadgeCount(count)
   },
-  'auth.signIn': ({ force }) => startNativeSignIn(force),
+  'auth.signIn': ({ force }) => startWebShellSignIn(force),
   'auth.signedOut': () => clearNativeSession(),
   'hotkeys.list': () => ({ ...keys }),
   'hotkeys.set': ({ id, accelerator }) => registerShortcut(id, accelerator),

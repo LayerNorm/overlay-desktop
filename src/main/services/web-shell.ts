@@ -45,6 +45,12 @@ export function configureWebSession(): void {
     )
   })
 }
+/** Keep hosting protection cookies in the same partition as the web window. */
+export function startWebShellSignIn(force = false): Promise<void> {
+  return startNativeSignIn(force, (url, init) =>
+    session.fromPartition(WEB_SHELL_PARTITION).fetch(url, { ...init, redirect: 'error' })
+  )
+}
 export async function openExternally(url: string): Promise<void> {
   const target = new URL(url)
   if (!['https:', 'http:', 'mailto:'].includes(target.protocol))
@@ -63,7 +69,7 @@ export function loadWebShell(window: BrowserWindow, route = '/app/work'): void {
   const guard = (event: Electron.Event, url: string) => {
     if (sameOrigin(url) && new URL(url).pathname.startsWith('/api/auth/sso/')) {
       event.preventDefault()
-      void startNativeSignIn().catch(() => {})
+      void startWebShellSignIn().catch(() => {})
       return
     }
     // SSO uses the system browser. No remote auth host receives a privileged window.
