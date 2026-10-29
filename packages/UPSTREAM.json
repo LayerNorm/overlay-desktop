@@ -1,0 +1,10 @@
+{
+  "overlay-ui": {
+    "repo": "LayerNorm/overlay-web",
+    "ref": "abd3962fa581c8a5946f566195d79ae2c1ec9967"
+  },
+  "overlay-shell-react": {
+    "repo": "LayerNorm/overlay-web",
+    "ref": "87d9962a2b0aa39d4ac04b4cec0249240213702b"
+  }
+}

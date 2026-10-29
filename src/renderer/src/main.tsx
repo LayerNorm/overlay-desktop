@@ -2,8 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 
-// Tailwind utilities + shared @overlay/chat-react component styles (scoped).
-// Preflight is disabled; resets are scoped to .shared-chat-scope.
+// The renderer's single Tailwind v4 entry intentionally omits preflight.
 import './styles/shared-chat.css'
 
 const fixtureWindow = new URLSearchParams(window.location.search).get('window')
@@ -24,6 +23,41 @@ document.head.appendChild(globalStyleSheet)
 // resolve beside the packaged renderer HTML, so the shared asset helper reads
 // this host-provided base instead of embedding platform-specific imports.
 document.documentElement.dataset.overlayAssetBase = '.'
+
+const setDocumentTheme = (darkMode: boolean): void => {
+  document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
+}
+
+try {
+  const settings = JSON.parse(localStorage.getItem('overlay-settings') ?? '{}') as {
+    darkMode?: unknown
+  }
+  setDocumentTheme(settings.darkMode !== false)
+} catch {
+  setDocumentTheme(true)
+}
+
+window.addEventListener('overlay:settings-changed', (event) => {
+  const { key, value } = (event as CustomEvent<{ key?: unknown; value?: unknown }>).detail ?? {}
+  if (key === 'darkMode' && typeof value === 'boolean') {
+    setDocumentTheme(value)
+  }
+})
+
+window.addEventListener('overlay:app-bootstrap-updated', (event) => {
+  const theme = (
+    event as CustomEvent<{ uiSettings?: { theme?: 'light' | 'dark' } }>
+  ).detail?.uiSettings?.theme
+  if (theme) {
+    setDocumentTheme(theme === 'dark')
+  }
+})
+
+window.bridge?.onSettingsChanged?.(({ key, value }) => {
+  if (key === 'darkMode' && typeof value === 'boolean') {
+    setDocumentTheme(value)
+  }
+})
 
 const root = createRoot(document.getElementById('root')!)
 

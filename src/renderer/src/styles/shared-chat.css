@@ -1,21 +1,34 @@
 /*
- * shared-chat.css — Tailwind utilities + shared @overlay/chat-react component
- * styles, scoped for the desktop renderer.
- *
- * Tailwind preflight is disabled (see tailwind.config.js) to avoid breaking the
- * desktop's existing inline-style + <style> tag UI. The scoped resets below
- * provide the minimal preflight-like behavior that shared components need
- * (border-style defaults, box-sizing) only within .shared-chat-scope.
+ * shared-chat.css — the renderer's single Tailwind and shared-package stylesheet
+ * entry. Full Tailwind base/preflight is intentionally not imported.
  */
-
-/* Shared primitives plus the same chat-only presentation used by the web app. */
-@import '@overlay/ui/styles.css';
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+@import 'tw-animate-css';
+@import '@overlay/ui/styles.css' layer(base);
+@import '@overlay/ui/typeset.css';
+@import 'sonner/dist/styles.css' layer(components);
 @import '@overlay/chat-react/chat-surface.css';
 @import '@overlay/modules-react/knowledge-surface.css';
 @import '@overlay/modules-react/file-viewer.css';
 @import '@overlay/modules-react/notebook-editor.css';
 
-@tailwind utilities;
+@source '../**/*.{js,ts,jsx,tsx}';
+@source '../../../../packages/overlay-ui/src/**/*.{js,ts,jsx,tsx}';
+@source '../../../../packages/overlay-chat-react/src/**/*.{js,ts,jsx,tsx}';
+@source '../../../../packages/overlay-modules-react/src/**/*.{js,ts,jsx,tsx}';
+@source '../../../../packages/overlay-shell-react/src/**/*.{js,ts,jsx,tsx,mdx}';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  --font-serif: var(--font-serif-family), Georgia, serif;
+}
 
 /* App-chrome sidebar motion retained after removing the legacy chat style injector. */
 @keyframes slideIn {
