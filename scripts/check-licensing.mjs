@@ -3,6 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 const readJson = (relative) =>
   JSON.parse(fs.readFileSync(path.join(root, relative), 'utf8'))
 const failures = []
@@ -31,9 +32,32 @@ const packageDirs = fs
   .map((entry) => entry.name)
   .sort()
 
+const privatePackageLicenses = new Map([
+  ['overlay-shell-react', 'AGPL-3.0-only'],
+  ['overlay-ui', 'AGPL-3.0-only']
+])
+let apachePackageCount = 0
+let privateAgplPackageCount = 0
+
 for (const directory of packageDirs) {
   const relative = `packages/${directory}`
   const manifest = readJson(`${relative}/package.json`)
+  const privateLicense = privatePackageLicenses.get(directory)
+  if (privateLicense) {
+    privateAgplPackageCount += 1
+    if (manifest.license !== privateLicense) {
+      failures.push(`${relative}/package.json must declare ${privateLicense}`)
+    }
+    if (manifest.private !== true) {
+      failures.push(`${relative}/package.json must explicitly set private to true`)
+    }
+    if (manifest.publishConfig) {
+      failures.push(`${relative}/package.json must not set publishConfig`)
+    }
+    continue
+  }
+
+  apachePackageCount += 1
   if (manifest.license !== 'Apache-2.0') {
     failures.push(`${relative}/package.json must declare Apache-2.0`)
   }
@@ -102,10 +126,12 @@ if (failures.length) {
 }
 
 console.log(
-  `License check passed: AGPL desktop, ${packageDirs.length} Apache packages, ` +
+  `License check passed: AGPL desktop, ${apachePackageCount} Apache packages, ` +
+    `${privateAgplPackageCount} private AGPL packages, ` +
     `${audited} runtime dependency entries, and required notices verified.`
 )
 
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function stringifyLicense(license) {
   if (!license) return 'MISSING'
   if (typeof license === 'string') return license
@@ -117,6 +143,7 @@ function stringifyLicense(license) {
   )
 }
 
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function isAcceptableLicenseExpression(value) {
   const expression = stripOuterParens(value.trim())
   if (!expression || expression === 'MISSING') return false
@@ -127,6 +154,7 @@ function isAcceptableLicenseExpression(value) {
   return allowedLicenseIds.has(expression)
 }
 
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function stripOuterParens(value) {
   let current = value.trim()
   while (current.startsWith('(') && current.endsWith(')')) {
@@ -135,12 +163,14 @@ function stripOuterParens(value) {
   return current
 }
 
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function packageNameFromLockPath(packagePath) {
   const tail = packagePath.split('node_modules/').filter(Boolean).pop()
   const parts = tail.split('/')
   return parts[0].startsWith('@') ? `${parts[0]}/${parts[1]}` : parts[0]
 }
 
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function matchesPackagePattern(packageName, pattern) {
   const escaped = pattern
     .split('*')
