@@ -1,0 +1,459 @@
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  globalShortcut,
+  Notification,
+  desktopCapturer,
+  screen,
+  session,
+  systemPreferences
+} from 'electron'
+import { join } from 'node:path'
+import { mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { randomUUID } from 'node:crypto'
+import { autoUpdater } from 'electron-updater'
+import {
+  BRIDGE_CHANNEL,
+  BRIDGE_VERSION,
+  capabilities,
+  isTrustedFrame,
+  methodSchemas,
+  type Method,
+  type Input,
+  type Results,
+  type UpdateStatus
+} from '../../../packages/overlay-desktop-bridge/src/index'
+import {
+  getWebShellOrigin,
+  getMainWindow,
+  remoteWindows,
+  openExternally,
+  WEB_SHELL_PARTITION
+} from './web-shell'
+import { emitDesktopEvent } from './desktop-events'
+import { desktopPanels } from './desktop-panels'
+import { embeddedHostService } from './embedded-host-service'
+import { parakeetService } from './parakeet-service'
+import { whisperKitService } from './whisperkit-service'
+import { modelDownloadService } from './model-download-service'
+import { startNativeSignIn, cancelPendingNativeAuth } from './security/native-auth-service'
+import { safeStorageService } from './security/safe-storage-service'
+import { systemUtils } from './system-utils'
+import { isAllowedStableUpgrade } from './auto-updater-policy'
+
+const defaults = { dictation: 'Alt+Space', chat: 'CommandOrControl+.', notes: 'CommandOrControl+/' }
+const keys = { ...defaults }
+let model = 'cloud'
+let recording = false
+let recordingTarget: 'composer' | 'system' = 'composer'
+let update: UpdateStatus = {
+  state: app.isPackaged ? 'idle' : 'development',
+  message: app.isPackaged ? undefined : 'Updates are available in the installed app.'
+}
+let hud: BrowserWindow | null = null
+let lastSessionCheck = 0
+let sessionAuthenticated = false
+let activeCalls = 0
+let sessionEpoch = 0
+const exclusiveCalls = new Set<string>()
+let hudReady: Promise<void> = Promise.resolve()
+const settingsPath = () => join(app.getPath('userData'), 'web-shell-settings.json')
+function persist(): void {
+  writeFileSync(settingsPath(), JSON.stringify({ keys, model }), { mode: 0o600 })
+}
+async function authenticated(): Promise<void> {
+  if (Date.now() - lastSessionCheck > 5000) {
+    const response = await session
+      .fromPartition(WEB_SHELL_PARTITION)
+      .fetch(`${getWebShellOrigin()}/api/auth/session`, {
+        redirect: 'error',
+        signal: AbortSignal.timeout(15_000)
+      })
+    sessionAuthenticated = response.ok && (await response.json()).authenticated === true
+    lastSessionCheck = Date.now()
+  }
+  if (!sessionAuthenticated) throw new Error('Sign in to Overlay first.')
+}
+export function clearNativeSession(): void {
+  lastSessionCheck = 0
+  sessionAuthenticated = false
+  sessionEpoch++
+  recording = false
+  hud?.webContents.send('recorder:cancel')
+  hud?.hide()
+  emitDesktopEvent('transcription.cancel', undefined)
+  cancelPendingNativeAuth()
+  safeStorageService.clearAuthSession()
+  embeddedHostService.stopImmediately()
+  desktopPanels.closeAll()
+  app.setBadgeCount(0)
+}
+function registerShortcut(id: keyof typeof defaults, accelerator: string): void {
+  const previous = keys[id]
+  if (previous === accelerator && globalShortcut.isRegistered(accelerator)) return
+  if (Object.entries(keys).some(([key, value]) => key !== id && value === accelerator))
+    throw new Error('Shortcut is already used by another Overlay action.')
+  if (
+    !globalShortcut.register(accelerator, () => {
+      void (id === 'dictation' && model !== 'cloud' ? Promise.resolve() : authenticated())
+        .then(() => {
+          if (id === 'dictation') {
+            if (recording) stopRecording()
+            else startRecording('system', model)
+          } else desktopPanels.toggle(id)
+        })
+        .catch(() => {})
+    })
+  )
+    throw new Error('Shortcut is unavailable. Choose another combination.')
+  if (previous !== accelerator) globalShortcut.unregister(previous)
+  keys[id] = accelerator
+  persist()
+}
+function startRecording(target: 'system' | 'composer', selectedModel: string): void {
+  if (recording) throw new Error('Dictation is already running.')
+  recording = true
+  recordingTarget = target
+  if (target === 'system') {
+    const epoch = sessionEpoch
+    void hudReady.then(() => {
+      if (recording && sessionEpoch === epoch) {
+        hud?.showInactive()
+        hud?.webContents.send('recorder:start', selectedModel)
+      }
+    })
+  } else emitDesktopEvent('transcription.start', { target, model: selectedModel })
+}
+function stopRecording(): void {
+  if (!recording) return
+  recording = false
+  if (recordingTarget === 'system') hud?.webContents.send('recorder:stop')
+  else emitDesktopEvent('transcription.stop', undefined)
+}
+async function transcribe(input: Input<'transcription.transcribe'>): Promise<{ text: string }> {
+  if (input.model === 'cloud') {
+    await authenticated()
+    const form = new FormData()
+    form.append(
+      'audio',
+      new Blob([new Uint8Array(input.audio)], { type: input.mime }),
+      input.mime === 'audio/mp4'
+        ? 'dictation.m4a'
+        : input.mime === 'audio/wav'
+          ? 'dictation.wav'
+          : 'dictation.webm'
+    )
+    const response = await session
+      .fromPartition(WEB_SHELL_PARTITION)
+      .fetch(`${getWebShellOrigin()}/api/v1/transcribe`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': `desktop:${randomUUID()}` },
+        body: form,
+        redirect: 'error',
+        signal: AbortSignal.timeout(120_000)
+      })
+    if (!response.ok) throw new Error(`Cloud dictation failed (${response.status}).`)
+    const result = await response.json()
+    if (typeof result.text !== 'string') throw new Error('Invalid transcription response.')
+    return { text: result.text }
+  }
+  const directory = mkdtempSync(join(tmpdir(), 'overlay-dictation-'))
+  try {
+    const file = join(
+      directory,
+      input.mime === 'audio/mp4'
+        ? 'audio.m4a'
+        : input.mime === 'audio/wav'
+          ? 'audio.wav'
+          : 'audio.webm'
+    )
+    writeFileSync(file, input.audio, { mode: 0o600 })
+    return input.model.startsWith('parakeet_')
+      ? await parakeetService.transcribe(file, {}, input.model as 'parakeet_v2' | 'parakeet_v3')
+      : await whisperKitService.transcribe(file, {}, input.model)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+}
+function updateStatus(value: UpdateStatus): void {
+  update = value
+  emitDesktopEvent('updates.status', value)
+}
+export function initializeUpdates(): void {
+  if (!app.isPackaged) return
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = false
+  autoUpdater.allowDowngrade = false
+  autoUpdater.allowPrerelease = false
+  autoUpdater.channel = 'latest'
+  autoUpdater.on('checking-for-update', () => updateStatus({ state: 'checking' }))
+  autoUpdater.on('update-not-available', () => updateStatus({ state: 'current' }))
+  autoUpdater.on('update-available', (info) => {
+    if (!isAllowedStableUpgrade(app.getVersion(), info.version)) {
+      updateStatus({ state: 'error', message: 'Update metadata was rejected.' })
+      return
+    }
+    updateStatus({ state: 'downloading', version: info.version })
+    void autoUpdater
+      .downloadUpdate()
+      .catch(() => updateStatus({ state: 'error', message: 'Update download failed.' }))
+  })
+  autoUpdater.on('download-progress', (progress) =>
+    updateStatus({ state: 'downloading', percent: progress.percent })
+  )
+  autoUpdater.on('update-downloaded', (info) =>
+    updateStatus({ state: 'downloaded', version: info.version })
+  )
+  autoUpdater.on('error', () =>
+    updateStatus({ state: 'error', message: 'Could not check for updates.' })
+  )
+  const check = () => void autoUpdater.checkForUpdates().catch(() => {})
+  setTimeout(check, 3000)
+  setInterval(check, 10 * 60 * 1000).unref()
+}
+const handlers: { [M in Method]: (input: Input<M>) => Promise<Results[M]> | Results[M] } = {
+  handshake: () => ({
+    bridgeVersion: BRIDGE_VERSION,
+    appVersion: app.getVersion(),
+    platform: process.platform,
+    capabilities: [...capabilities]
+  }),
+  'window.openDataFolder': async () => {
+    const result = await (await import('electron')).shell.openPath(app.getPath('userData'))
+    if (result) throw new Error('Could not open the data folder.')
+  },
+  'window.openExternal': ({ url }) => openExternally(url),
+  'window.setBadgeCount': ({ count }) => {
+    app.setBadgeCount(count)
+  },
+  'auth.signIn': ({ force }) => startNativeSignIn(force),
+  'auth.signedOut': () => clearNativeSession(),
+  'hotkeys.list': () => ({ ...keys }),
+  'hotkeys.set': ({ id, accelerator }) => registerShortcut(id, accelerator),
+  'hotkeys.reset': ({ id }) => registerShortcut(id, defaults[id]),
+  'panels.show': async ({ kind }) => {
+    await authenticated()
+    desktopPanels.show(kind)
+  },
+  'panels.hide': ({ kind }) => desktopPanels.hide(kind),
+  'panels.toggle': async ({ kind }) => {
+    await authenticated()
+    desktopPanels.toggle(kind)
+  },
+  'panels.setDocked': ({ kind, edge }) => desktopPanels.setDocked(kind, edge),
+  'transcription.status': () => ({
+    recording,
+    model,
+    microphone: systemPreferences.getMediaAccessStatus('microphone'),
+    accessibility:
+      process.platform !== 'darwin' || systemPreferences.isTrustedAccessibilityClient(false)
+  }),
+  'transcription.configure': ({ model: next }) => {
+    model = next
+    persist()
+  },
+  'transcription.start': async ({ target, model: selected }) => {
+    if (selected === 'cloud') await authenticated()
+    startRecording(target, selected)
+  },
+  'transcription.stop': () => stopRecording(),
+  'transcription.transcribe': transcribe,
+  'transcription.listModels': async () => {
+    const ids = [
+      'parakeet_v2',
+      'parakeet_v3',
+      'openai_whisper-base',
+      'openai_whisper-small',
+      'openai_whisper-large-v3_turbo'
+    ] as const
+    return Promise.all(
+      ids.map(async (id) => ({
+        id,
+        name: id.replaceAll('_', ' '),
+        downloaded: id.startsWith('parakeet_')
+          ? modelDownloadService.isParakeetModelInstalled(id as 'parakeet_v2')
+          : await modelDownloadService.isModelInstalled(id)
+      }))
+    )
+  },
+  'transcription.downloadModel': async ({ id }) => {
+    if (id.startsWith('parakeet_'))
+      await modelDownloadService.downloadParakeetModel(id as 'parakeet_v2')
+    else await modelDownloadService.downloadModel(id)
+  },
+  'capture.screenshot': async ({ display }) => {
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 1920, height: 1080 }
+    })
+    const source = sources.find(
+      (item) => item.display_id === (display ?? String(screen.getPrimaryDisplay().id))
+    )
+    if (!source || source.thumbnail.isEmpty())
+      throw new Error('Allow screen recording in System Settings to capture a screenshot.')
+    return { dataUrl: source.thumbnail.toDataURL(), name: 'Screenshot.png' }
+  },
+  'notifications.show': ({ title, body, route }) => {
+    if (!Notification.isSupported()) return
+    const notification = new Notification({ title, body })
+    notification.on('click', () => {
+      const main = getMainWindow()
+      main?.show()
+      main?.focus()
+      emitDesktopEvent('notifications.click', route)
+    })
+    notification.show()
+  },
+  'agentHost.status': () => embeddedHostService.getStatus(),
+  'agentHost.start': async ({ adapter, enrollmentCode }) => {
+    await authenticated()
+    return embeddedHostService.start({ adapterId: adapter, code: enrollmentCode })
+  },
+  'agentHost.stop': () => embeddedHostService.stop(),
+  'agentHost.logs': () => embeddedHostService.getStatus().logTail,
+  'updates.status': () => update,
+  'updates.check': async () => {
+    if (app.isPackaged) await autoUpdater.checkForUpdates()
+    return update
+  },
+  'updates.install': () => {
+    if (update.state !== 'downloaded') throw new Error('No downloaded update is ready.')
+    autoUpdater.quitAndInstall()
+  }
+}
+export function registerDesktopRuntime(): void {
+  try {
+    if (existsSync(settingsPath())) {
+      const saved = JSON.parse(readFileSync(settingsPath(), 'utf8'))
+      if (saved.keys)
+        for (const id of Object.keys(defaults) as (keyof typeof defaults)[])
+          if (typeof saved.keys[id] === 'string') keys[id] = saved.keys[id]
+      const result = methodSchemas['transcription.configure'].safeParse({ model: saved.model })
+      if (result.success) model = result.data.model
+    }
+  } catch {
+    /* Invalid preferences fall back to defaults. */
+  }
+  if (!existsSync(settingsPath())) {
+    try {
+      const legacy = JSON.parse(
+        readFileSync(join(app.getPath('userData'), 'settings.json'), 'utf8')
+      )
+      const candidate =
+        legacy.localTranscriptionEnabled === false ? 'cloud' : legacy.selectedModelId
+      const result = methodSchemas['transcription.configure'].safeParse({ model: candidate })
+      if (result.success) model = result.data.model
+    } catch {
+      /* Fresh install. */
+    }
+  }
+  // No legacy native credentials are retained alongside the window's cookie session.
+  safeStorageService.clearAuthSession()
+  ipcMain.handle(BRIDGE_CHANNEL, async (event, method: unknown, value: unknown) => {
+    if (
+      !remoteWindows.has(event.sender) ||
+      !isTrustedFrame(
+        event.senderFrame?.url ?? '',
+        event.senderFrame === event.sender.mainFrame,
+        getWebShellOrigin()
+      )
+    )
+      throw new Error('Untrusted desktop caller.')
+    if (typeof method !== 'string' || !Object.hasOwn(methodSchemas, method))
+      throw new Error('Unknown desktop method.')
+    if (activeCalls >= 8) throw new Error('Too many desktop operations.')
+    const parsed = methodSchemas[method as Method].safeParse(value)
+    if (!parsed.success) throw new Error('Invalid desktop arguments.')
+    const exclusive =
+      method === 'transcription.transcribe' || method === 'transcription.downloadModel'
+    if (exclusive && exclusiveCalls.has(method))
+      throw new Error('This desktop operation is already running.')
+    if (exclusive) exclusiveCalls.add(method)
+    activeCalls++
+    try {
+      // The method and its argument are checked together before dispatch.
+      const handler = handlers[method as Method] as (input: unknown) => unknown
+      return await handler(parsed.data)
+    } finally {
+      activeCalls--
+      if (exclusive) exclusiveCalls.delete(method)
+    }
+  })
+  for (const id of Object.keys(defaults) as (keyof typeof defaults)[]) {
+    try {
+      registerShortcut(id, keys[id])
+    } catch {
+      /* Settings can repair shortcut conflicts. */
+    }
+  }
+  hud = new BrowserWindow({
+    width: 300,
+    height: 90,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    show: false,
+    resizable: false,
+    webPreferences: {
+      preload: join(__dirname, '../preload/recorder.js'),
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  })
+  hudReady = hud.loadFile(join(__dirname, '../renderer/recorder.html'))
+  hud.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  hud.webContents.on('will-navigate', (event) => event.preventDefault())
+  session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
+    callback(
+      !!hud &&
+        contents === hud.webContents &&
+        permission === 'media' &&
+        details.isMainFrame === true &&
+        contents.getURL().startsWith('file:') &&
+        'mediaTypes' in details &&
+        details.mediaTypes?.every((type) => type === 'audio') === true
+    )
+  })
+  session.defaultSession.setPermissionCheckHandler(
+    (contents, permission) =>
+      !!hud &&
+      contents === hud.webContents &&
+      permission === 'media' &&
+      contents.getURL().startsWith('file:')
+  )
+  ipcMain.handle('recorder:transcribe', async (event, input: unknown) => {
+    if (
+      !hud ||
+      event.sender !== hud.webContents ||
+      event.senderFrame !== event.sender.mainFrame ||
+      !event.senderFrame?.url.startsWith('file:')
+    )
+      throw new Error('Untrusted recorder.')
+    const epoch = sessionEpoch
+    try {
+      const result = await transcribe(methodSchemas['transcription.transcribe'].parse(input))
+      if (epoch !== sessionEpoch) throw new Error('Dictation was cancelled.')
+      await systemUtils.pasteText(result.text, false, false)
+      emitDesktopEvent('transcription.final', result)
+      return result
+    } finally {
+      recording = false
+      hud.hide()
+    }
+  })
+  ipcMain.on('recorder:cancel', (event) => {
+    if (hud && event.sender === hud.webContents) {
+      recording = false
+      hud.hide()
+    }
+  })
+  app.on('before-quit', () => {
+    embeddedHostService.stopImmediately()
+    globalShortcut.unregisterAll()
+    parakeetService.stopServer()
+    whisperKitService.stopServer()
+  })
+}

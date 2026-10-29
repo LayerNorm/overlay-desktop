@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Load the full web app by default with a versioned, origin-checked native bridge.
+  Keep dictation, compact chat/notes panels, screenshots, notifications, local
+  Agent Host controls and updates; retire duplicate chat/UI/provider code.
+- Preserve legacy transcripts, preferences, recordings and knowledge files during
+  upgrade. Cancel active microphone capture and native work on web sign-out.
+- Exercise the sandboxed bridge and package the native app in macOS CI.
+
 ### Added
 
 - Public history-free source repository at

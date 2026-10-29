@@ -40,6 +40,7 @@ jobs:
           # Gate on production dependencies only. Dev-tool advisories (eslint,
           # electron-builder toolchain) do not ship in the macOS app artifact.
           npm run check:dependencies:prod
+          npm run check:release-security
           npm run check:launch-controls
           npm run check:public-source-secrets
 
@@ -47,6 +48,9 @@ jobs:
         run: |
           npm test
           npm run build
+
+      - name: Exercise the sandboxed Electron bridge
+        run: npx playwright test e2e/bridge.e2e.ts
 
       - name: Package an unsigned Apple Silicon app
         env:

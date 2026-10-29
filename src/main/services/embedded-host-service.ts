@@ -3,7 +3,7 @@ import { app } from 'electron'
 import { mkdirSync } from 'node:fs'
 import { hostname } from 'node:os'
 import { join } from 'node:path'
-import { windowManager } from './window-manager'
+import { emitDesktopEvent } from './desktop-events'
 import { serverProfileService } from './security/server-profile-service'
 import { createLocalHelperEnvironment } from './security/local-helper-process'
 import {
@@ -202,7 +202,7 @@ class EmbeddedHostService {
   }
 
   private broadcast(): void {
-    windowManager.broadcastToAllWindows('embedded-host:state', this.getStatus())
+    emitDesktopEvent('agentHost.status', this.getStatus())
   }
 }
 

@@ -1,6 +1,6 @@
 import { app, shell } from 'electron'
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
-import type { OverlayServerDiscovery } from '@overlay/api-client'
+import type { OverlayServerDiscovery } from './server-discovery'
 import {
   safeStorageService,
   type AuthSession,
