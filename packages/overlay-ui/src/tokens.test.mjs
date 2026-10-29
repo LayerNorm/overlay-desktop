@@ -18,6 +18,7 @@ test('neutral buttons have separate surfaces and readable text in both themes', 
   const css = readFileSync(new URL('./styles.css', import.meta.url), 'utf8')
   assert.match(css, /--primary: var\(--button-primary-bg\)/)
   assert.match(css, /--secondary: var\(--button-secondary-bg\)/)
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const luminance = (hex) => {
     const channels = hex.match(/[0-9a-f]{2}/gi).map((part) => parseInt(part, 16) / 255)
       .map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
@@ -25,6 +26,7 @@ test('neutral buttons have separate surfaces and readable text in both themes', 
   }
   for (const block of [css.match(/:root \{([\s\S]*?)\}/)[1], css.match(/\[data-theme='dark'\] \{([\s\S]*?)\}/)[1]]) {
     for (const variant of ['primary', 'secondary']) {
+      // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
       const token = (name) => block.match(new RegExp(`--button-${variant}-${name}: (#[0-9a-f]+)`))[1]
       for (const surface of ['bg', 'hover']) {
         assert.notEqual(token(surface), '#ffffff')
