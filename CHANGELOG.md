@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Cancel pending microphone permission requests safely; stale captures cannot start behind a hidden dictation HUD or stop a newer recording.
+
 - Retain notification click handlers after delivery, restore minimized windows and clear delivered alerts on sign-out.
 
 - Convert captured audio to PCM WAV before local inference so offline models can decode HUD and composer recordings.

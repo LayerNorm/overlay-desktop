@@ -584,11 +584,7 @@ export function registerDesktopRuntime(): void {
     }
   })
   ipcMain.on('recorder:cancel', (event) => {
-    if (hud && event.sender === hud.webContents) {
-      recording = false
-      processing = false
-      hud.hide()
-    }
+    if (hud && event.sender === hud.webContents) cancelRecording()
   })
   app.on('before-quit', () => {
     clearNotifications()
