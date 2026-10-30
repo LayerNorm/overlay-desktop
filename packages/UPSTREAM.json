@@ -58,6 +58,19 @@
         "src/components/exchange/tool-rail.tsx",
         "src/components/exchange/tool-rail.test.tsx"
       ]
+    },
+    "toolCallsBottomAvatarSync": {
+      "repo": "LayerNorm/overlay-web",
+      "ref": "d4041964e8cfdc816e42bad427ebef3fcaec29f4",
+      "files": [
+        "src/components/exchange/tool-rail.tsx",
+        "src/components/transcript/ExchangeLoadingState.tsx",
+        "src/styles/chat-surface.css"
+      ],
+      "adaptedFiles": [
+        "src/components/exchange/tool-rail.test.tsx",
+        "src/components/transcript/ExchangeLoadingState.test.tsx"
+      ]
     }
   },
   "overlay-modules-react": {

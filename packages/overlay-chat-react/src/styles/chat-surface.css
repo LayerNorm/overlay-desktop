@@ -385,45 +385,6 @@
   text-underline-offset: 0.18em;
 }
 
-/* Loading copy advances like a compact mechanical reel: most of each beat is
-   still, with a short upward transition between words. The duplicated final
-   word makes the loop seam visually identical to its first frame. */
-@keyframes overlayChatLoadingWordReel {
-  0%,
-  15% {
-    transform: translate3d(0, 0, 0);
-  }
-  16.667%,
-  31.667% {
-    transform: translate3d(0, -1.125rem, 0);
-  }
-  33.333%,
-  48.333% {
-    transform: translate3d(0, -2.25rem, 0);
-  }
-  50%,
-  65% {
-    transform: translate3d(0, -3.375rem, 0);
-  }
-  66.667%,
-  81.667% {
-    transform: translate3d(0, -4.5rem, 0);
-  }
-  83.333%,
-  98.333% {
-    transform: translate3d(0, -5.625rem, 0);
-  }
-  100% {
-    transform: translate3d(0, -6.75rem, 0);
-  }
-}
-
-:where(.overlay-chat-surface) .overlay-loading-tool-logo {
-  display: inline-flex;
-  width: 0.5rem;
-  flex: 0 0 0.5rem;
-}
-
 :where(.overlay-chat-surface) .overlay-stream-marker {
   display: inline-block;
   width: 0.95em;
@@ -454,27 +415,6 @@
   min-width: 20px;
   min-height: 20px;
   vertical-align: middle;
-}
-
-:where(.overlay-chat-surface) .overlay-loading-word-viewport {
-  display: inline-block;
-  height: 1.125rem;
-  min-width: 8.75rem;
-  overflow: hidden;
-}
-
-:where(.overlay-chat-surface) .overlay-loading-word-track {
-  display: flex;
-  flex-direction: column;
-  will-change: transform;
-  animation: overlayChatLoadingWordReel 12s linear infinite;
-}
-
-:where(.overlay-chat-surface) .overlay-loading-word {
-  display: block;
-  height: 1.125rem;
-  flex: 0 0 1.125rem;
-  white-space: nowrap;
 }
 
 /* Pointer hover is an enhancement. Keyboard focus and touch/coarse-pointer
@@ -700,7 +640,6 @@
   }
 
   :where(.overlay-chat-surface) .overlay-stream-marker,
-  :where(.overlay-chat-surface) .overlay-loading-tool-logo,
   :where(.overlay-chat-surface)
     .markdown-content--streaming
     .overlay-stream-marker {
