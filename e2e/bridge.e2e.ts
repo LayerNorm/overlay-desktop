@@ -51,7 +51,7 @@ test.beforeAll(async () => {
   await page.waitForLoadState('domcontentloaded')
 })
 test.afterAll(async () => {
-  await app?.close()
+  await app?.close().catch(() => {})
   await new Promise<void>((resolve) => server?.close(() => resolve()))
   rmSync(profile, { recursive: true, force: true })
 })
@@ -159,4 +159,16 @@ test('event unsubscribe stops delivery and a foreign top frame receives no bridg
   expect(count).toBe(0)
   await page.goto('data:text/html,<title>Untrusted</title><h1>Untrusted</h1>')
   expect(await page.evaluate(() => 'overlayDesktop' in window)).toBe(false)
+})
+
+test('quitting with an open floating panel exits the native app', async () => {
+  signedIn = true
+  await page.goto(origin + '/app/work')
+  await page.evaluate(() => window.overlayDesktop.call('panels.show', { kind: 'chat' }))
+  await expect
+    .poll(() => app.windows().some((win) => win.url().includes('surface=panel')))
+    .toBe(true)
+  const closed = app.waitForEvent('close', { timeout: 10_000 })
+  await app.evaluate(({ app: nativeApp }) => nativeApp.quit())
+  await closed
 })

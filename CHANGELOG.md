@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Let Quit finish while a floating panel is open, while keeping ordinary panel
+  close actions as hide-and-return-focus.
+
 - Use an ephemeral signing keychain with its own password for macOS CI, and
   explain cloud dictation plan limits in the native controls.
 
