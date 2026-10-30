@@ -512,7 +512,7 @@ export function registerDesktopRuntime(): void {
     show: false,
     resizable: false,
     webPreferences: {
-      preload: join(__dirname, '../preload/recorder.js'),
+      preload: join(__dirname, '../preload/web-shell.js'),
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false

@@ -21,8 +21,7 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          'web-shell': resolve('src/preload/web-shell.ts'),
-          recorder: resolve('src/preload/recorder.ts')
+          'web-shell': resolve('src/preload/index.ts')
         }
       }
     }

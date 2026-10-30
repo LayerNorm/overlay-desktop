@@ -67,12 +67,14 @@ test('the actual sandboxed preload exposes a versioned bridge and no Node or leg
   const result = await page.evaluate(async () => ({
     info: await window.overlayDesktop.handshake(),
     node: typeof (window as unknown as { require?: unknown }).require,
-    legacy: 'overlay' in window || 'electron' in window
+    legacy: 'overlay' in window || 'electron' in window,
+    recorder: 'recorder' in window
   }))
   expect(result.info.bridgeVersion).toBe(1)
   expect(result.info.capabilities).toContain('agentHost')
   expect(result.node).toBe('undefined')
   expect(result.legacy).toBe(false)
+  expect(result.recorder).toBe(false)
   const child = page.frames().find((frame) => frame !== page.mainFrame())!
   expect(await child.evaluate(() => 'overlayDesktop' in window)).toBe(false)
 })
@@ -155,6 +157,7 @@ test('offline fallback has no bridge and retries the pinned server', async () =>
   await page.reload().catch(() => {})
   await expect(page.getByRole('heading', { name: "Can't reach Overlay" })).toBeVisible()
   expect(await page.evaluate(() => 'overlayDesktop' in window)).toBe(false)
+  expect(await page.evaluate(() => 'recorder' in window)).toBe(false)
   await new Promise<void>((resolve) => server.listen(port, '127.0.0.1', resolve))
   await page.getByRole('link', { name: 'Retry' }).click()
   await expect(page.getByRole('heading', { name: 'Bridge fixture' })).toBeVisible()

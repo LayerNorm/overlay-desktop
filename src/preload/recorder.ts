@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { prepareTranscriptionAudio } from './transcription-audio'
-if (process.isMainFrame && location.protocol === 'file:')
+if (process.isMainFrame && location.protocol === 'file:' && !process.argv.some(arg => arg.startsWith('--overlay-origin=')))
   contextBridge.exposeInMainWorld('recorder', {
     onStart: (callback: (model: string, epoch: number) => void) => {
       ipcRenderer.on('recorder:start', (_event, model, epoch) => callback(model, epoch))
