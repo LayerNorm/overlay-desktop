@@ -50,7 +50,7 @@ jobs:
           npm run build
 
       - name: Exercise the sandboxed Electron bridge
-        run: npx playwright test e2e/bridge.e2e.ts
+        run: npx playwright test e2e/bridge.e2e.ts e2e/migration.e2e.ts
 
       - name: Package an unsigned Apple Silicon app
         env:

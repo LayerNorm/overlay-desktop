@@ -53,3 +53,7 @@ The macOS CI wrapper imports the existing signing certificate into an ephemeral
 keychain using a separate random keychain password, then passes `CSC_KEYCHAIN`
 to electron-builder. It removes the certificate file and keychain after use.
 Signing and notarization remain in CI; the publication gate remains separate.
+
+Clean-clone CI also seeds a throwaway legacy file-origin browser profile and
+launches the real upgrade path, verifying private transcript export, secret
+exclusion, retained recordings/journals and a once-only migration notice.
