@@ -4,6 +4,9 @@ The complete Overlay web app in a secure Electron shell, with native dictation,
 floating chat and notes panels, screenshots, notifications, a local Agent Host
 and automatic updates. Web features ship to desktop through the same app routes.
 
+CI exercises the native recorder HUD with a synthetic media device as well as
+direct transcription, so capture startup and preload isolation are both covered.
+
 ```sh
 npm ci
 npm run dev

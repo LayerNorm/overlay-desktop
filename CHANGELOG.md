@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Fix native dictation HUD startup by isolating its recorder state from the preload bridge, and cover actual audio capture in Electron CI.
+
 - Exercise signed macOS candidates with clean and upgraded profiles in CI before release publication.
 
 - Scope cloud dictation to the trusted calling window’s workspace route.

@@ -56,7 +56,7 @@ jobs:
           npm run build
 
       - name: Exercise the sandboxed Electron bridge
-        run: npx playwright test e2e/bridge.e2e.ts e2e/migration.e2e.ts
+        run: npx playwright test e2e/bridge.e2e.ts e2e/migration.e2e.ts e2e/recorder.e2e.ts
 
       - name: Transcribe synthetic speech with a pinned local model
         if: ${{ inputs.local_transcription == true }}
