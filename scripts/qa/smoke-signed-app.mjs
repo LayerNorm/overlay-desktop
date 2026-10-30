@@ -94,7 +94,10 @@ async function launch(profile, upgrade = false) {
 }
 async function close(launched) {
   const exited = once(launched.child, 'exit')
-  await launched.browser.close()
+  // Closing the CDP connection/windows is not Quit on macOS. Exercise the
+  // signed app's normal application Quit event, including open-panel cleanup.
+  execFileSync('/usr/bin/osascript', ['-e', 'tell application "Overlay" to quit'], { stdio: 'ignore', timeout: 10_000 })
+  await launched.browser.close().catch(() => {})
   await Promise.race([exited, delay(10_000).then(() => { throw new Error('Signed app did not quit') })])
 }
 try {
