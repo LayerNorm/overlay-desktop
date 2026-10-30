@@ -17,9 +17,13 @@ const windows = new Map<Kind, BrowserWindow>()
 const layouts: Partial<Record<Kind, PanelLayout>> = {}
 const layoutPath = () => join(app.getPath('userData'), 'web-panel-layout.json')
 let watchingDisplays = false
+let quitting = false
 export function restorePanelLayout(): void {
   if (!watchingDisplays) {
     watchingDisplays = true
+    app.on('before-quit', () => {
+      quitting = true
+    })
     const restore = (): void => {
       for (const [kind, window] of windows)
         if (!window.isDestroyed()) window.setBounds(bounds(kind, window))
@@ -108,6 +112,7 @@ function get(kind: Kind): BrowserWindow {
   window.on('moved', persist)
   window.on('resized', persist)
   window.on('close', (event) => {
+    if (quitting) return
     event.preventDefault()
     desktopPanels.hide(kind)
   })
