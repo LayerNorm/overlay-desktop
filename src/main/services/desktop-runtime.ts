@@ -67,6 +67,12 @@ let sessionAuthenticated = false
 let activeCalls = 0
 let sessionEpoch = 0
 const exclusiveCalls = new Set<string>()
+// Electron notification interaction handlers need a live object after show resolves.
+const deliveredNotifications = new Set<Notification>()
+function clearNotifications(): void {
+  for (const notification of deliveredNotifications) notification.close()
+  deliveredNotifications.clear()
+}
 let hudReady: Promise<void> = Promise.resolve()
 const settingsPath = () => join(app.getPath('userData'), 'web-shell-settings.json')
 function persist(): void {
@@ -94,6 +100,7 @@ export function clearNativeSession(): void {
   safeStorageService.clearAuthSession()
   embeddedHostService.stopImmediately()
   desktopPanels.closeAll()
+  clearNotifications()
   app.setBadgeCount(0)
 }
 function registerShortcut(id: keyof typeof defaults, accelerator: string): void {
@@ -366,16 +373,29 @@ const handlers: { [M in Method]: (input: Input<M>) => Promise<Results[M]> | Resu
   'notifications.show': ({ title, body, route }) => {
     if (!Notification.isSupported()) throw new Error('Notifications are unavailable on this system.')
     const notification = new Notification({ title, body })
+    if (deliveredNotifications.size >= 50) {
+      const oldest = deliveredNotifications.values().next().value!
+      deliveredNotifications.delete(oldest)
+      oldest.close()
+    }
+    deliveredNotifications.add(notification)
+    notification.once('close', () => deliveredNotifications.delete(notification))
     notification.on('click', () => {
+      deliveredNotifications.delete(notification)
       const main = getMainWindow()
+      if (main?.isMinimized()) main.restore()
       main?.show()
       main?.focus()
       emitDesktopEvent('notifications.click', route)
     })
     return new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Could not show the notification. Check notification permissions in System Settings.')), 5000)
+      const timer = setTimeout(() => {
+        deliveredNotifications.delete(notification)
+        notification.close()
+        reject(new Error('Could not show the notification. Check notification permissions in System Settings.'))
+      }, 5000)
       notification.once('show', () => { clearTimeout(timer); resolve() })
-      notification.once('failed', () => { clearTimeout(timer); reject(new Error('Allow Overlay notifications in System Settings to receive alerts.')) })
+      notification.once('failed', () => { clearTimeout(timer); deliveredNotifications.delete(notification); reject(new Error('Allow Overlay notifications in System Settings to receive alerts.')) })
       notification.show()
     })
   },
@@ -571,6 +591,7 @@ export function registerDesktopRuntime(): void {
     }
   })
   app.on('before-quit', () => {
+    clearNotifications()
     embeddedHostService.stopImmediately()
     hotkeyManager.unregisterAll()
     parakeetService.stopServer()
