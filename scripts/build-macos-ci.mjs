@@ -60,6 +60,12 @@ try {
   }
   stage = 'package, sign and notarize'
   run('npx', ['electron-builder', '--mac', '--arm64', '--publish', 'never'], env)
+  if (process.env.CI === 'true' && process.env.CSC_LINK) {
+    stage = 'signed clean-profile and upgrade acceptance'
+    run(process.execPath, ['scripts/qa/smoke-signed-app.mjs'], {
+      CI: 'true', PATH: process.env.PATH, HOME: process.env.HOME, TMPDIR: process.env.TMPDIR
+    })
+  }
 } catch {
   // Child-process errors contain argv, including keychain/certificate passwords.
   console.error(`macOS CI build failed during ${stage}; signing credentials were not logged.`)

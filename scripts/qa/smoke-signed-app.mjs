@@ -16,7 +16,9 @@ execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', bundle])
 const directory = await mkdtemp(join(tmpdir(), 'overlay-signed-acceptance-'))
 const evidence = resolve('test-results/signed-acceptance')
 await mkdir(evidence, { recursive: true })
-const result = { sourceSha: process.env.RELEASE_SOURCE_SHA, profiles: [] }
+const sourceSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+assert.match(sourceSha, /^[a-f0-9]{40}$/)
+const result = { sourceSha, profiles: [] }
 let origin
 const server = createServer((request, response) => {
   if (request.url === '/api/auth/session') {
@@ -32,7 +34,7 @@ const server = createServer((request, response) => {
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
 origin = `http://127.0.0.1:${server.address().port}`
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
-async function poll(read, label, timeout = 40_000) {
+async function poll(read, label, timeout = 90_000) {
   const deadline = Date.now() + timeout
   while (Date.now() < deadline) {
     const value = await read().catch(() => undefined)

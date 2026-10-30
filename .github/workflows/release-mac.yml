@@ -88,11 +88,6 @@ jobs:
           RELEASE_SOURCE_SHA: ${{ inputs.release_source_sha }}
         run: npm run verify:mac-artifact
 
-      - name: Exercise signed app with clean and upgraded profiles
-        env:
-          RELEASE_SOURCE_SHA: ${{ inputs.release_source_sha }}
-        run: node scripts/qa/smoke-signed-app.mjs
-
       - name: Save signed acceptance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
