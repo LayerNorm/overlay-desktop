@@ -31,6 +31,7 @@ import {
   startWebShellSignIn,
   getMainWindow,
   remoteWindows,
+  remoteWindowSurfaces,
   openExternally,
   WEB_SHELL_PARTITION
 } from './web-shell'
@@ -434,6 +435,11 @@ export function registerDesktopRuntime(): void {
     if (exclusive) exclusiveCalls.add(method)
     activeCalls++
     try {
+      if (method === 'handshake')
+        return {
+          ...(await handlers.handshake(undefined)),
+          surface: remoteWindowSurfaces.get(event.sender) ?? 'main'
+        }
       // The method and its argument are checked together before dispatch.
       const handler = handlers[method as Method] as (input: unknown) => unknown
       return await handler(parsed.data)

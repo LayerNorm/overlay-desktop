@@ -5,6 +5,7 @@ import { startNativeSignIn } from './security/native-auth-service'
 
 export const WEB_SHELL_PARTITION = 'persist:overlay'
 export const remoteWindows = new Set<WebContents>()
+export const remoteWindowSurfaces = new WeakMap<WebContents, 'main' | 'panel'>()
 let mainWindow: BrowserWindow | null = null
 export function getMainWindow(): BrowserWindow | undefined {
   return mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined
@@ -61,6 +62,7 @@ export function loadWebShell(window: BrowserWindow, route = '/app/work'): void {
   if (!route.includes('surface=panel')) mainWindow = window
   const contents = window.webContents
   remoteWindows.add(contents)
+  remoteWindowSurfaces.set(contents, route.includes('surface=panel') ? 'panel' : 'main')
   contents.once('destroyed', () => remoteWindows.delete(contents))
   contents.setWindowOpenHandler(({ url }) => {
     void openExternally(url).catch(() => {})

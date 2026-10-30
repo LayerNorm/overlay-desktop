@@ -108,11 +108,16 @@ test('panels load web routes with the same cookie partition, and sign-out stops 
     .toContain('/app/chat?surface=panel')
   const panel = app.windows().find((win) => win.url().includes('surface=panel'))!
   expect(await panel.evaluate(() => document.cookie)).toContain('qa-partition=shared')
+  expect((await panel.evaluate(() => window.overlayDesktop.handshake())).surface).toBe('panel')
+  // Chat replaces its URL after creating a conversation. Surface identity survives
+  // both that navigation and reload, independently of the URL query string.
+  await panel.goto(origin + '/app/chat?id=fixture-conversation')
+  expect((await panel.evaluate(() => window.overlayDesktop.handshake())).surface).toBe('panel')
   await panel.evaluate(() =>
     window.overlayDesktop.call('panels.setDocked', { kind: 'chat', edge: 'right' })
   )
   await page.evaluate(() => window.overlayDesktop.call('auth.signedOut', undefined))
-  expect(app.windows().some((win) => win.url().includes('surface=panel'))).toBe(false)
+  expect(panel.isClosed()).toBe(true)
   signedIn = false
   const denied = await page.evaluate(async () => {
     try {
