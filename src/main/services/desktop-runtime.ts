@@ -49,7 +49,7 @@ import { settingsService } from './settings-service'
 import { hotkeyManager, hasAccessibilityPermission } from './hotkey-manager'
 import { isAllowedStableUpgrade } from './auto-updater-policy'
 
-const defaults = { dictation: 'Alt+Space', chat: 'CommandOrControl+.', notes: 'CommandOrControl+/' }
+const defaults = { dictation: 'Control+Space', chat: 'CommandOrControl+.', notes: 'CommandOrControl+/' }
 const keys = { ...defaults }
 let holdEnabled = false
 let model = 'cloud'
@@ -363,7 +363,7 @@ const handlers: { [M in Method]: (input: Input<M>) => Promise<Results[M]> | Resu
     return { dataUrl: source.thumbnail.toDataURL(), name: 'Screenshot.png' }
   },
   'notifications.show': ({ title, body, route }) => {
-    if (!Notification.isSupported()) return
+    if (!Notification.isSupported()) throw new Error('Notifications are unavailable on this system.')
     const notification = new Notification({ title, body })
     notification.on('click', () => {
       const main = getMainWindow()
@@ -371,7 +371,12 @@ const handlers: { [M in Method]: (input: Input<M>) => Promise<Results[M]> | Resu
       main?.focus()
       emitDesktopEvent('notifications.click', route)
     })
-    notification.show()
+    return new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Could not show the notification. Check notification permissions in System Settings.')), 5000)
+      notification.once('show', () => { clearTimeout(timer); resolve() })
+      notification.once('failed', () => { clearTimeout(timer); reject(new Error('Allow Overlay notifications in System Settings to receive alerts.')) })
+      notification.show()
+    })
   },
   'agentHost.status': () => embeddedHostService.getStatus(),
   'agentHost.start': async ({ adapter, enrollmentCode }) => {

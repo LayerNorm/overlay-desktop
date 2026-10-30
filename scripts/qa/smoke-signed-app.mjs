@@ -30,6 +30,7 @@ const sourceSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' 
 assert.match(sourceSha, /^[a-f0-9]{40}$/)
 const result = { sourceSha, profiles: [] }
 let origin
+let cookieRetained = false
 const server = createServer({ key: await readFile(key), cert: await readFile(certificate) }, (request, response) => {
   if (request.url === '/api/auth/session') {
     response.setHeader('Content-Type', 'application/json')
@@ -37,7 +38,8 @@ const server = createServer({ key: await readFile(key), cert: await readFile(cer
     return
   }
   if (request.url === '/login')
-    response.setHeader('Set-Cookie', 'signed-qa=retained; HttpOnly; SameSite=Lax; Path=/')
+    response.setHeader('Set-Cookie', 'signed-qa=retained; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=3600')
+  if (request.url === '/cookie-check') cookieRetained = request.headers.cookie?.includes('signed-qa=retained') === true
   response.setHeader('Content-Type', 'text/html')
   response.end('<!doctype html><title>Signed Overlay acceptance</title><h1>Signed shell</h1><iframe src="about:blank"></iframe><textarea aria-label="Scratch composer"></textarea>')
 })
@@ -143,7 +145,9 @@ try {
       await page.evaluate(() => window.overlayDesktop.call('panels.show', { kind: 'chat' }))
       await close(launched)
       launched = await launch(profile)
-      assert.ok((await launched.browser.contexts()[0].cookies(origin)).some(cookie => cookie.name === 'signed-qa' && cookie.value === 'retained'))
+      cookieRetained = false
+      await launched.page.goto(origin + '/cookie-check')
+      assert.ok(cookieRetained, 'The signed web partition must retain its persistent session cookie across Quit/restart')
       result.profiles.push({ kind, sandbox: true, panels: true, signOut: true, restart: true, migration: kind === 'upgrade' })
     } finally {
       if (launched && launched.child.exitCode === null) {

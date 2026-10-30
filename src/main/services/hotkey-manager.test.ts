@@ -197,9 +197,9 @@ it('accepts Electron accelerators for tap/hold dictation and cancels native stat
     { onRecordingStart: start, onRecordingStop: vi.fn(), onRecordingCancel: cancel },
     () => true
   )
-  expect(manager.registerHotkey('transcription', 'Alt+Space')).toBe(true)
-  expect(manager.registerHotkey('push-to-talk', 'Alt+Space')).toBe(true)
-  mocks.globalHandlers.get('Alt+Space')?.()
+  expect(manager.registerHotkey('transcription', 'Control+Space')).toBe(true)
+  expect(manager.registerHotkey('push-to-talk', 'Control+Space')).toBe(true)
+  mocks.globalHandlers.get('Control+Space')?.()
   expect(start).toHaveBeenCalledOnce()
   expect(manager.getRecordingState().isRecording).toBe(true)
   manager.cancelRecording()
