@@ -11,6 +11,7 @@ import { join, isAbsolute } from 'node:path'
 const directory = mkdtempSync(join(tmpdir(), 'overlay-signing-'))
 const keychain = join(directory, 'build.keychain-db')
 let created = false
+let previousKeychains
 let stage = 'compile'
 const run = (command, args, env = process.env) =>
   execFileSync(command, args, { env, stdio: 'inherit' })
@@ -46,6 +47,12 @@ try {
       '/usr/bin/productbuild'
     ])
     security(['set-key-partition-list', '-S', 'apple-tool:,apple:', '-s', '-k', password, keychain])
+    previousKeychains = [
+      ...security(['list-keychains', '-d', 'user'])
+        .toString()
+        .matchAll(/"([^"]+)"/g)
+    ].map((match) => match[1])
+    security(['list-keychains', '-d', 'user', '-s', keychain, ...previousKeychains])
     rmSync(certificate)
     env.CSC_KEYCHAIN = keychain
     delete env.CSC_LINK
@@ -60,6 +67,7 @@ try {
 } finally {
   if (created) {
     try {
+      if (previousKeychains) security(['list-keychains', '-d', 'user', '-s', ...previousKeychains])
       security(['delete-keychain', keychain])
     } catch {
       /* Ephemeral runner also destroys it. */
