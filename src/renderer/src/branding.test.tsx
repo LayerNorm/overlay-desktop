@@ -17,12 +17,11 @@ describe('desktop O branding', () => {
     expect(markup).not.toContain('<img')
   })
 
-  it('stops eye motion on failed tool rows', () => {
+  it('keeps failed tool rows logo-free', () => {
     const markup = renderToStaticMarkup(<ToolCallRowWithReasoning block={{
       kind: 'tool', key: 'failed', name: 'search', state: 'output-error',
     }} />)
-    expect(markup).toContain('overlay-mark--none')
-    expect(markup).not.toContain('overlay-mark--look')
+    expect(markup).not.toContain('overlay-mark')
   })
 
   it('renders the accessible, theme-colored mark and capitalized lockup', () => {
@@ -35,9 +34,9 @@ describe('desktop O branding', () => {
     expect(lockup).toContain('verlay')
   })
 
-  it('moves tool eyes only while running', () => {
-    expect(renderToStaticMarkup(<ToolLineLogo running />)).toContain('overlay-mark--look')
-    expect(renderToStaticMarkup(<ToolLineLogo />)).toContain('overlay-mark--none')
+  it('keeps the tool logo compatibility slot empty while running or idle', () => {
+    expect(renderToStaticMarkup(<ToolLineLogo running />)).toBe('')
+    expect(renderToStaticMarkup(<ToolLineLogo />)).toBe('')
   })
 
   it.each(['token', 'chunk'] as const)('uses inline looking eyes for empty %s streams', (streamingMode) => {
