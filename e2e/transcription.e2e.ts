@@ -41,7 +41,7 @@ test('a pinned local model transcribes synthetic speech through the native bridg
   let app: Awaited<ReturnType<typeof electron.launch>> | undefined
   try {
     app = await electron.launch({
-      args: ['-r', offlineHook, '.', `--user-data-dir=${join(directory, 'profile')}`, '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', `--use-file-for-fake-audio-capture=${audio}`],
+      args: ['-r', offlineHook, '.', `--user-data-dir=${join(directory, 'profile')}`, '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'],
       env: { ...process.env, APP_SERVER_URL: origin }
     })
     await expect
@@ -83,6 +83,22 @@ test('a pinned local model transcribes synthetic speech through the native bridg
     })
     await expect.poll(() => app!.windows().some(page => page.url().includes('recorder.html'))).toBe(true)
     const hud = app.windows().find(page => page.url().includes('recorder.html'))!
+    // Feed known speech into a real capture MediaStream deterministically.
+    // Chromium's default fake microphone is a tone, not spoken audio.
+    await hud.evaluate(async bytes => {
+      const context = new AudioContext()
+      const buffer = await context.decodeAudioData(Uint8Array.from(bytes).buffer)
+      const destination = context.createMediaStreamDestination()
+      navigator.mediaDevices.getUserMedia = async () => {
+        const source = context.createBufferSource()
+        source.buffer = buffer
+        source.loop = true
+        source.connect(destination)
+        await context.resume()
+        source.start()
+        return destination.stream
+      }
+    }, [...readFileSync(audio)])
     await page.evaluate(() => (window as unknown as { overlayDesktop: DesktopBridge }).overlayDesktop.call('transcription.start', { target: 'system', model: 'openai_whisper-base' }))
     await expect(hud.getByRole('status')).toHaveText('Listening…')
     await hud.waitForTimeout(5000)
