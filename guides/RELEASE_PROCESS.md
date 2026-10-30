@@ -65,6 +65,8 @@ The signed candidate also boots on the clean macOS runner with clean and legacy
 profiles. Playwright connects to the actual signed app's renderer (no main-process
 inspector or signature changes), verifies the sandbox, panels, sign-out, restart
 cookies and preserved upgrade data. Native upgrade-dialog automation is CI-only.
+Its HTTPS loopback fixture uses a one-day certificate trusted only on the disposable
+runner and removed afterward; packaged HTTPS/certificate enforcement stays enabled.
 Evidence is uploaded separately; this supplements physical microphone/hotkey and
 notification-click acceptance and does not sign off the independent Gate B review.
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn, execFileSync } from 'node:child_process'
-import { createServer } from 'node:http'
+import { createServer } from 'node:https'
 import { mkdtemp, mkdir, readFile, writeFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -14,13 +14,23 @@ const bundle = resolve('dist/mac-arm64/Overlay.app')
 const executable = join(bundle, 'Contents/MacOS/Overlay')
 execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', bundle])
 const directory = await mkdtemp(join(tmpdir(), 'overlay-signed-acceptance-'))
+const certificate = join(directory, 'fixture.crt')
+const key = join(directory, 'fixture.key')
+const tlsConfig = join(directory, 'openssl.cnf')
+await writeFile(tlsConfig, '[req]\ndistinguished_name=dn\nx509_extensions=extensions\nprompt=no\n[dn]\nCN=Overlay CI localhost fixture\n[extensions]\nbasicConstraints=critical,CA:TRUE\nsubjectAltName=IP:127.0.0.1,DNS:localhost\nkeyUsage=critical,keyCertSign,digitalSignature,keyEncipherment\n')
+execFileSync('/usr/bin/openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-keyout', key, '-out', certificate, '-config', tlsConfig], { stdio: 'ignore' })
+const certificateHash = execFileSync('/usr/bin/openssl', ['x509', '-in', certificate, '-fingerprint', '-sha1', '-noout'], { encoding: 'utf8' }).trim().split('=')[1].replaceAll(':', '')
+const systemKeychain = '/Library/Keychains/System.keychain'
+// The packaged app correctly requires HTTPS. Trust this one-day loopback-only
+// fixture CA on the disposable runner instead of bypassing certificate checks.
+execFileSync('/usr/bin/sudo', ['/usr/bin/security', 'add-trusted-cert', '-d', '-r', 'trustRoot', '-k', systemKeychain, certificate], { stdio: 'ignore' })
 const evidence = resolve('test-results/signed-acceptance')
 await mkdir(evidence, { recursive: true })
 const sourceSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
 assert.match(sourceSha, /^[a-f0-9]{40}$/)
 const result = { sourceSha, profiles: [] }
 let origin
-const server = createServer((request, response) => {
+const server = createServer({ key: await readFile(key), cert: await readFile(certificate) }, (request, response) => {
   if (request.url === '/api/auth/session') {
     response.setHeader('Content-Type', 'application/json')
     response.end(JSON.stringify({ authenticated: true }))
@@ -32,7 +42,7 @@ const server = createServer((request, response) => {
   response.end('<!doctype html><title>Signed Overlay acceptance</title><h1>Signed shell</h1><iframe src="about:blank"></iframe><textarea aria-label="Scratch composer"></textarea>')
 })
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
-origin = `http://127.0.0.1:${server.address().port}`
+origin = `https://127.0.0.1:${server.address().port}`
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 async function poll(read, label, timeout = 90_000) {
   const deadline = Date.now() + timeout
@@ -144,5 +154,6 @@ try {
 } finally {
   server.closeAllConnections()
   await new Promise(resolve => server.close(resolve))
+  execFileSync('/usr/bin/sudo', ['/usr/bin/security', 'delete-certificate', '-Z', certificateHash, systemKeychain], { stdio: 'ignore' })
   await rm(directory, { recursive: true, force: true })
 }
