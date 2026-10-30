@@ -58,8 +58,8 @@ The manual workflow requires a full 40-character `release_source_sha`.
    staples, Electron fuses, ASAR contents, updater metadata, and artifact hashes.
 5. GitHub attests the verified artifacts and stores them as a short-lived
    immutable workflow artifact.
-6. Only the separate protected publish job creates the narrowly scoped GitHub
-   App token and uploads the already-verified files.
+6. Only the separate protected publish job receives a repository-scoped
+   `GITHUB_TOKEN` with contents-write access and uploads the already-verified files.
 
 The signed candidate also boots on the clean macOS runner with clean and legacy
 profiles. Playwright connects to the actual signed app's renderer (no main-process
@@ -77,8 +77,8 @@ packagers, or artifact verification.
 
 After the Gate B approval is recorded:
 
-1. Remove `if: ${{ false }}` from both `build-mac` and `publish-mac` in the same
-   reviewed commit.
+1. Remove `if: ${{ false }}` from `publish-mac` in a reviewed commit; the
+   protected candidate build is already enabled.
 2. Confirm environment protection and secret placement in GitHub.
 3. Dispatch **Release macOS** with the reviewed full commit SHA.
 4. Confirm the build and publish jobs reference the same SHA.
