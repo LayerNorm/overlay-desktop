@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { groupMoreItems, UnifiedSidebar, type UnifiedSidebarProps } from './UnifiedSidebar'
 import { publishPageSubviews } from './pageSubviewStore'
 import type { SecondaryPanelNav } from '../types'
+import { BrandLockup } from '@overlay/ui'
 
 ;(globalThis as typeof globalThis & { React: typeof React }).React = React
 
@@ -39,7 +40,7 @@ const chatNav: SecondaryPanelNav = {
 function render(overrides: Partial<UnifiedSidebarProps> = {}) {
   return renderToStaticMarkup(
     <UnifiedSidebar
-      brand={<span>overlay</span>}
+      brand={<BrandLockup />}
       collapsed={false}
       onCollapsedChange={noop}
       items={items}
@@ -172,7 +173,7 @@ test('settings turn the sidebar into a settings sidebar with search and grouped 
     settingsGroups: [{ label: 'Desktop settings', ids: ['general', 'customization', 'connected-apps'] }],
     items: [...items, { id: 'settings-close', label: 'Settings', icon: Puzzle, active: true, onSelect: noop }],
   })
-  assert.match(html, /overlay/)
+  assert.match(html, /aria-label="Overlay"/)
   assert.match(html, /Back to app/)
   assert.match(html, /aria-label="Search settings"/)
   assert.match(html, />Desktop settings</)

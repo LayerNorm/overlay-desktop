@@ -15,8 +15,7 @@ import type { PanelTheme } from '../../hooks/usePanelTheme'
  * shared chat-react components (the .shared-chat-scope element).
  */
 export function panelThemeToSharedCssVars(
-  theme: PanelTheme,
-  logoUrl: string
+  theme: PanelTheme
 ): CSSProperties {
   return {
     '--background': theme.panelBg,
@@ -42,8 +41,6 @@ export function panelThemeToSharedCssVars(
     // previously made chevrons render near-black in light mode.
     '--tool-line-label': theme.isDark ? '#d4d4d8' : '#52525b',
     '--tool-line-chevron': theme.isDark ? '#c4c4c4' : '#a1a1aa',
-    // Stream marker / brand mark pulse
-    '--overlay-mark-logo-url': `url(${logoUrl})`,
     // Font families — desktop uses system-ui for UI, Instrument Serif for display.
     // Shared components use --font-serif-family for serif text.
     '--font-serif-family': '"Instrument Serif", Georgia, serif',

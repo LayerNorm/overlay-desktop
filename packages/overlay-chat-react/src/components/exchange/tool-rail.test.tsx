@@ -2,24 +2,17 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { OVERLAY_LOGO_SRC } from '@overlay/chat-core'
-import { ChatReactConfigContext } from '../../context/chat-react-config'
-import { ToolLineLogo } from './tool-rail'
+import { ToolLineLogo, ToolLogoColumn, TraceMark } from './tool-rail'
 
-test('tool rail uses the host-provided Overlay logo URL', () => {
-  const markup = renderToStaticMarkup(
-    <ChatReactConfigContext.Provider value={{ toolLogoUrl: 'app://overlay-logo.png' }}>
-      <ToolLineLogo />
-    </ChatReactConfigContext.Provider>,
-  )
+test('tool row compatibility slots render no markup while running or idle', () => {
+  const slots = [
+    <TraceMark key="trace-idle" />,
+    <TraceMark key="trace-running" running />,
+    <ToolLineLogo key="tool-logo-idle" />,
+    <ToolLineLogo key="tool-logo-running" running />,
+    <ToolLogoColumn key="column-idle" connectTop connectBottom />,
+    <ToolLogoColumn key="column-running" connectTop connectBottom running />,
+  ]
 
-  assert.match(markup, /src="app:\/\/overlay-logo\.png"/)
-  assert.match(markup, /width="8"/)
-  assert.match(markup, /height="8"/)
-  assert.match(markup, /size-2/)
-})
-
-test('tool rail retains the web logo fallback', () => {
-  const markup = renderToStaticMarkup(<ToolLineLogo />)
-  assert.ok(markup.includes(`src="${OVERLAY_LOGO_SRC}"`))
+  for (const slot of slots) assert.equal(renderToStaticMarkup(slot), '')
 })

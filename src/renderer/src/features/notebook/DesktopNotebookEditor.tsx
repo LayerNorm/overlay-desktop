@@ -21,7 +21,6 @@ import {
 } from '../../utils/panelLatency'
 import { createDesktopNotebookRepository } from './desktopNotebookRepository'
 import { DesktopNotebookPanelSidebar } from './DesktopNotebookPanelSidebar'
-import overlayLogoUrl from '../../../../../resources/logos/overlay-chat-mark.png'
 
 interface DesktopNotebookEditorProps {
   noteId: string | null
@@ -166,7 +165,7 @@ export function DesktopNotebookEditor({
   return (
     <div
       className="shared-app-scope h-full min-h-0 w-full overflow-hidden"
-      style={panelThemeToSharedCssVars(theme, overlayLogoUrl)}
+      style={panelThemeToSharedCssVars(theme)}
     >
       <CanonicalNotebookEditor
         noteId={selectedNoteId}
@@ -257,7 +256,6 @@ export function DesktopNotebookEditor({
             onMentionsChange={(mentions) => composer.onMentionsChange(toEditorMentions(mentions))}
           />
         )}
-        logo={<img src={overlayLogoUrl} alt="" className="mt-0.5 size-3.5 shrink-0 select-none" draggable={false} />}
       />
     </div>
   )

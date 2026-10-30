@@ -4,7 +4,6 @@ import { SourcesPanel } from '@overlay/chat-react/sources-panel'
 import type { PanelTheme } from '../../hooks/usePanelTheme'
 import { panelThemeToSharedCssVars } from './themeBridge'
 
-import overlayLogoUrl from '../../../../../resources/logos/overlay-chat-mark.png'
 
 export interface DesktopSourcesPanelProps {
   open: boolean
@@ -19,7 +18,7 @@ export function DesktopSourcesPanel({
   sources,
   theme
 }: DesktopSourcesPanelProps): React.ReactElement<any> {
-  const scopeStyle = useMemo(() => panelThemeToSharedCssVars(theme, overlayLogoUrl), [theme])
+  const scopeStyle = useMemo(() => panelThemeToSharedCssVars(theme), [theme])
   const openSource = useCallback((url: string) => {
     void window.bridge.openExternal(url)
   }, [])

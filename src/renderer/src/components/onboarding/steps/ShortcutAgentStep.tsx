@@ -1,3 +1,4 @@
+import { BrandLockup } from '@overlay/ui'
 import React, { useState, useEffect } from 'react'
 import { OnboardingTheme, formatHotkeyDisplay } from '../types'
 import { HotkeyDialog } from '../../ui/HotkeyDialog'
@@ -8,7 +9,7 @@ import {
   getSubtitleStyle,
   getHotkeyBadgeStyle
 } from '../styles'
-import logoImage from '../../../../../../resources/logos/logo-big-no-bg.png'
+import { OnboardingMark } from '../OnboardingMark'
 
 interface ShortcutAgentStepProps {
   theme: OnboardingTheme
@@ -40,9 +41,9 @@ export function ShortcutAgentStep({
   return (
     <div style={containerStyle}>
       <div style={{ textAlign: 'center', maxWidth: '550px' }}>
-        <img
-          src={logoImage}
-          alt="Overlay"
+        <OnboardingMark
+          size={32}
+          color={theme.text}
           style={{
             width: '32px',
             height: '32px',
@@ -71,9 +72,7 @@ export function ShortcutAgentStep({
           <br />
           <span style={{ fontSize: '13px', opacity: 0.85 }}>
             or say &quot;
-            <span style={{ fontFamily: "'Libre Baskerville', Georgia, serif", fontWeight: 400 }}>
-              overlay
-            </span>
+            <BrandLockup />
             &quot; in push to talk mode
           </span>
         </p>

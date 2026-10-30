@@ -47,7 +47,6 @@ import {
   useDesktopMediaComposerState
 } from './useDesktopMediaComposerState'
 
-import overlayLogoUrl from '../../../../../resources/logos/logo-big-no-bg.png'
 
 const AGENT_TRIGGER = '@agent'
 
@@ -651,7 +650,7 @@ export const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>
       setShowPlusDropdown((value) => !value)
     }
 
-    const scopeStyle = useMemo(() => panelThemeToSharedCssVars(theme, overlayLogoUrl), [theme])
+    const scopeStyle = useMemo(() => panelThemeToSharedCssVars(theme), [theme])
 
     const hasSendableContent = canSubmitDesktopMediaDraft({
       generationMode,

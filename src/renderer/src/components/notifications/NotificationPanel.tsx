@@ -1,7 +1,7 @@
 import { useState, useEffect, ReactElement } from 'react'
 import { X } from 'lucide-react'
 import { usePanelTheme } from '../../hooks/usePanelTheme'
-import logoImage from '../../../../../resources/logos/logo-big-no-bg.png'
+import { OverlayMark } from '@overlay/ui'
 
 export interface NotificationItem {
   id: string
@@ -119,16 +119,9 @@ function NotificationCard({
         }}
       >
         {/* Overlay logo */}
-        <img
-          src={logoImage}
-          alt="Overlay"
-          style={{
-            width: 28,
-            height: 28,
-            flexShrink: 0,
-            objectFit: 'contain'
-          }}
-        />
+        <span style={{ color: textColor, display: 'inline-flex', flexShrink: 0 }}>
+          <OverlayMark size={28} label="Overlay" />
+        </span>
 
         {/* Title only */}
         <div

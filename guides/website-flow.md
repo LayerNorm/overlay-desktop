@@ -206,7 +206,7 @@ Names the paradigm. The hyphenated "overlay-first" positions this as a computing
 - Download button (larger variant)
 - Subtext: "windows coming soon"
 - Footer with:
-  - Logo + copyright "2026 overlay"
+  - Logo + copyright "2026 Overlay"
   - Attribution: "made with care by divyan.sh"
   - Links: terms, privacy, contact
 

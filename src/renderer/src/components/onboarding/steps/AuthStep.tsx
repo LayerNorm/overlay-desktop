@@ -7,7 +7,7 @@ import {
   loadVerifiedAuthSession,
   startNativeSignIn
 } from '../../../services/auth-service'
-import logoImage from '../../../../../../resources/logos/logo-big-no-bg.png'
+import { OnboardingMark } from '../OnboardingMark'
 import { useAppBootstrap } from '../../../contexts/AppBootstrapContext'
 
 interface AuthStepProps {
@@ -99,9 +99,9 @@ export function AuthStep({ theme, onNext, isTransitioning }: AuthStepProps): Rea
     <div style={containerStyle}>
       <div style={{ textAlign: 'center' }}>
         {/* Logo */}
-        <img
-          src={logoImage}
-          alt="Overlay Logo"
+        <OnboardingMark
+          size={50}
+          color={theme.text}
           style={{
             width: '50px',
             height: '50px',

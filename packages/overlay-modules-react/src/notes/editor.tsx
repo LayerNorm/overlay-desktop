@@ -1236,7 +1236,7 @@ export function CanonicalNotebookEditor({
     />
   )
 
-  const overlayLogo = logo ?? <span className="overlay-stream-marker h-3.5 w-3.5" aria-hidden />
+  const overlayLogo = logo
   const resolvingRequestedNote = Boolean(selectionPending || (noteId && activeNote?._id !== noteId))
   const notebookHeaderProps: NotebookEditorHeaderRenderProps = {
     activeNote,

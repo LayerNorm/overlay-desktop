@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { OnboardingStepProps } from '../types'
 import { getContainerStyle } from '../styles'
 import { Check } from 'lucide-react'
-import logoImage from '../../../../../../resources/logos/logo-big-no-bg.png'
+import { OnboardingMark } from '../OnboardingMark'
 import { desktopAppJson } from '../../../services/app-api-client'
 
 // Import integration icons
@@ -158,9 +158,9 @@ export function IntegrationsSkillsStep({
           padding: '0 24px'
         }}
       >
-        <img
-          src={logoImage}
-          alt="Overlay Logo"
+        <OnboardingMark
+          size={48}
+          color={theme.text}
           style={{
             width: '48px',
             height: '48px',

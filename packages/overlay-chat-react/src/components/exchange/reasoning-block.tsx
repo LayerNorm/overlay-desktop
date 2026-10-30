@@ -33,7 +33,7 @@ export function ReasoningBlock({
     <div className="w-full px-1 py-0.5">
       <div className="max-w-[min(100%,36rem)]">
         <div className="flex items-stretch gap-2.5 py-1 text-[13px] leading-snug">
-          <ToolLogoColumn connectTop={connectTop} connectBottom={connectBottom} />
+          <ToolLogoColumn connectTop={connectTop} connectBottom={connectBottom} running={streaming} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className={streaming ? 'tool-line-shimmer' : 'text-[var(--tool-line-label)]'}>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { OnboardingTheme } from '../types'
 import { getContainerStyle, getTitleStyle, getSubtitleStyle } from '../styles'
-import logoImage from '../../../../../../resources/logos/logo-big-no-bg.png'
+import { OnboardingMark } from '../OnboardingMark'
 
 interface TestTranscriptionStepProps {
   theme: OnboardingTheme
@@ -78,9 +78,9 @@ export function TestTranscriptionStep({
   return (
     <div style={containerStyle}>
       <div style={{ textAlign: 'center', maxWidth: '450px' }}>
-        <img
-          src={logoImage}
-          alt="Overlay"
+        <OnboardingMark
+          size={32}
+          color={theme.text}
           style={{
             width: '32px',
             height: '32px',

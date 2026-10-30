@@ -1,7 +1,7 @@
 import React from 'react'
 import { OnboardingStepProps } from '../types'
 import { getContainerStyle, getButtonStyle, applyButtonHover, resetButtonHover } from '../styles'
-import logoImage from '../../../../../../resources/logos/logo-big-no-bg.png'
+import { OnboardingMark } from '../OnboardingMark'
 
 interface GetStartedStepProps extends OnboardingStepProps {
   onComplete: () => void
@@ -25,9 +25,9 @@ export function GetStartedStep({
           alignItems: 'center'
         }}
       >
-        <img
-          src={logoImage}
-          alt="Overlay Logo"
+        <OnboardingMark
+          size={64}
+          color={theme.text}
           style={{
             width: '64px',
             height: '64px',

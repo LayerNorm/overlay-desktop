@@ -31,7 +31,7 @@ export function ToolCallRowWithReasoning({
   return (
     <div className="w-full max-w-[min(100%,36rem)]">
       <div className={`flex items-stretch gap-2.5 ${pad} text-[13px] leading-snug`}>
-        <ToolLogoColumn connectTop={connectTop} connectBottom={connectBottom} />
+        <ToolLogoColumn connectTop={connectTop} connectBottom={connectBottom} running={running} />
         <span
           className={`min-w-0 ${
             running && !err ? 'tool-line-shimmer' : err ? 'text-red-600' : 'text-[var(--tool-line-label)]'
@@ -120,7 +120,7 @@ export function ToolCallsCollapsedGroup({
         onClick={() => setOpen((o) => !o)}
         className="inline-flex h-auto w-fit max-w-full items-stretch gap-2.5 rounded-md px-0 py-1 text-left text-[13px] leading-snug text-[var(--tool-line-label)] hover:bg-transparent"
       >
-        <ToolLogoColumn connectTop={connectTop} connectBottom={connectBottom} />
+        <ToolLogoColumn connectTop={connectTop} connectBottom={connectBottom} running={anyRunning && !anyErr} />
         <span className="inline-flex min-w-0 items-center gap-1">
           <span className={`min-w-0 ${anyRunning && !anyErr ? 'tool-line-shimmer' : ''}`}>{summary}</span>
           <ChevronDown

@@ -12,7 +12,7 @@ import {
   applySecondaryButtonHover,
   resetSecondaryButtonHover
 } from '../styles'
-import logoImage from '../../../../../../resources/logos/logo-big-no-bg.png'
+import { OnboardingMark } from '../OnboardingMark'
 
 interface ShortcutNotebookStepProps {
   theme: OnboardingTheme
@@ -46,9 +46,9 @@ export function ShortcutNotebookStep({
   return (
     <div style={containerStyle}>
       <div style={{ textAlign: 'center', maxWidth: '550px' }}>
-        <img
-          src={logoImage}
-          alt="Overlay"
+        <OnboardingMark
+          size={32}
+          color={theme.text}
           style={{
             width: '32px',
             height: '32px',

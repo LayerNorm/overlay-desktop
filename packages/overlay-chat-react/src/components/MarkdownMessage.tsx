@@ -1,5 +1,6 @@
 import 'katex/dist/katex.min.css'
-import { type ReactNode, memo, useMemo } from 'react'
+import { OverlayMark } from '@overlay/ui'
+import { type ComponentProps, type ReactNode, memo, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { SourceCitationMap } from '../lib/source-citations'
 import { webSourceDisplayKey, type WebSourceItem } from '../lib/web-sources'
@@ -34,7 +35,7 @@ interface Props {
   /**
    * 'token' (default): render the full normalized text through one ReactMarkdown pass
    *   every update, with a shim that closes open structures so partial markdown still
-   *   renders styled. Shows a pulsing Overlay logo at the tail of the most recent token
+   *   renders styled. Shows an Overlay mark with looking eyes at the tail of the most recent token
    *   (or standalone before any tokens arrive); each new block element fades in as it
    *   enters the DOM.
    * 'chunk': split into completed paragraph blocks + a separate tail block, with the
@@ -93,6 +94,16 @@ function MarkdownMessageImpl({
 
       return {
         ...baseComponents,
+        span({ node: _node, className, children, ...props }: ComponentProps<'span'> & { node?: unknown }) {
+          if (className?.split(' ').includes('overlay-stream-marker')) {
+            return (
+              <span className={className} aria-hidden>
+                <OverlayMark size={20} motion="look" label="" />
+              </span>
+            )
+          }
+          return <span className={className} {...props}>{children}</span>
+        },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         a(props: any) {
           const href = props.href
@@ -187,7 +198,7 @@ function MarkdownMessageImpl({
   // Token mode: render the entire shimmed document in one pass so React can reconcile
   // stable nodes and only the tail paragraph/row/code-line actually re-renders.
   // Append the streaming marker inline so the Overlay logo sits at the right side
-  // of the most recent token (and pulses while generation continues).
+  // of the most recent token (with looking eyes while generation continues).
   const tokenDisplay = useMemo(() => {
     if (!(isStreaming && streamingMode === 'token')) return normalizedDisplay
     const shimmed = shimIncompleteMarkdown(pacedDisplay)
@@ -202,7 +213,7 @@ function MarkdownMessageImpl({
     return markdownRehypePlugins
   }, [isStreaming, streamingMode])
 
-  // Chunk mode only: paragraph split + trailing pulsing marker. Token mode always
+  // Chunk mode only: paragraph split + trailing looking-eye marker. Token mode always
   // uses the single-pass render below (both during and after streaming) so React
   // reconciles the existing DOM when streaming ends instead of unmounting the whole
   // subtree and re-animating every block — which previously caused a one-shot
@@ -224,7 +235,7 @@ function MarkdownMessageImpl({
     // text. While streaming, the `markdown-content--streaming` class plays a gentle
     // opacity/translate fade-in each time a new block (paragraph, list item, table
     // row, heading, pre, blockquote) enters the DOM; within a given block, continued
-    // token updates just extend the existing text so the pulsing
+    // token updates just extend the existing text so the looking-eye
     // `.overlay-stream-marker` at the tail carries the "still generating" cue. When
     // no tokens have arrived yet, the marker stands alone and scales up via CSS to
     // act as a large "thinking" indicator. When streaming ends, the class is dropped
@@ -270,7 +281,9 @@ function MarkdownMessageImpl({
       ) : null}
 
       {showInlineTypingDots ? (
-        <span className="overlay-stream-marker" aria-hidden />
+        <span className="overlay-stream-marker" aria-hidden>
+          <OverlayMark size={20} motion="look" label="" />
+        </span>
       ) : null}
     </div>
   )

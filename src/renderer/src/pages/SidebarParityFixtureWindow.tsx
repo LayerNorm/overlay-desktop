@@ -10,7 +10,7 @@ import {
   Puzzle,
   Workflow,
 } from 'lucide-react'
-import { OverlayMark } from '@overlay/ui'
+import { BrandLockup } from '@overlay/ui'
 import {
   SidebarAccountMenu,
   ShellAdapterProvider,
@@ -175,10 +175,7 @@ export function SidebarParityFixtureWindow(): React.ReactElement<any> {
         <ShellAdapterProvider value={desktopShellAdapter}>
           <UnifiedSidebar
             brand={
-              <span className="flex items-baseline gap-[0.4em] font-serif text-[17px]">
-                <OverlayMark size={8.5} className="-translate-y-[0.02em]" />
-                overlay
-              </span>
+              <BrandLockup className="text-[17px] text-(--foreground)" />
             }
             collapsed={collapsed}
             onCollapsedChange={setCollapsed}

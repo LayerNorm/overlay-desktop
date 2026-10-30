@@ -1,3 +1,4 @@
+import { BrandLockup } from '@overlay/ui'
 import React, { useEffect } from 'react'
 import { OnboardingTheme } from '../types'
 import {
@@ -64,9 +65,7 @@ export function AccessibilityStep({
             opacity: 0
           }}
         >
-          <span style={{ fontFamily: "'Libre Baskerville', Georgia, serif", fontWeight: 400 }}>
-            overlay
-          </span>{' '}
+          <BrandLockup />{' '}
           needs accessibility permission to paste your transcription
         </h2>
         <button
