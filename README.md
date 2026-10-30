@@ -60,5 +60,6 @@ exclusion, retained recordings/journals and a once-only migration notice.
 
 For real local-model QA, dispatch Clean public clone with `local_transcription`
 enabled. The macOS runner synthesizes a test phrase and downloads the pinned
-Whisper Base model before transcribing through the actual sandboxed bridge.
+Whisper Base model before transcribing through the actual sandboxed bridge. The ASR helper runs
+under a test-only macOS sandbox that denies networking, verifying offline inference.
 This is an opt-in network/model smoke, separate from the ordinary fixture suite.
