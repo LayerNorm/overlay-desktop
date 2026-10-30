@@ -149,17 +149,21 @@ function stopRecording(): void {
     hud?.webContents.send('recorder:stop')
   } else emitDesktopEvent('transcription.stop', undefined)
 }
-async function transcribe(input: Input<'transcription.transcribe'>): Promise<{ text: string }> {
+async function transcribe(
+  input: Input<'transcription.transcribe'>,
+  sourceUrl?: string
+): Promise<{ text: string }> {
   if (transcriptionBusy) throw new Error('Dictation is still processing.')
   transcriptionBusy = true
   try {
-    return await transcribeAudio(input)
+    return await transcribeAudio(input, sourceUrl)
   } finally {
     transcriptionBusy = false
   }
 }
 async function transcribeAudio(
-  input: Input<'transcription.transcribe'>
+  input: Input<'transcription.transcribe'>,
+  sourceUrl?: string
 ): Promise<{ text: string }> {
   if (input.model === 'cloud') {
     await authenticated()
@@ -173,11 +177,18 @@ async function transcribeAudio(
           ? 'dictation.wav'
           : 'dictation.webm'
     )
+    const source = new URL(
+      sourceUrl || getMainWindow()?.webContents.getURL() || getWebShellOrigin()
+    )
+    const referer =
+      source.origin === getWebShellOrigin()
+        ? `${source.origin}${source.pathname}`
+        : getWebShellOrigin()
     const response = await session
       .fromPartition(WEB_SHELL_PARTITION)
       .fetch(`${getWebShellOrigin()}/api/v1/transcribe`, {
         method: 'POST',
-        headers: { 'Idempotency-Key': `desktop:${randomUUID()}` },
+        headers: { 'Idempotency-Key': `desktop:${randomUUID()}`, Referer: referer },
         body: form,
         redirect: 'error',
         signal: AbortSignal.timeout(120_000)
@@ -441,8 +452,8 @@ export function registerDesktopRuntime(): void {
           surface: remoteWindowSurfaces.get(event.sender) ?? 'main'
         }
       // The method and its argument are checked together before dispatch.
-      const handler = handlers[method as Method] as (input: unknown) => unknown
-      return await handler(parsed.data)
+      const handler = handlers[method as Method] as (input: unknown, sourceUrl?: string) => unknown
+      return await handler(parsed.data, event.senderFrame?.url)
     } finally {
       activeCalls--
       if (exclusive) exclusiveCalls.delete(method)

@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Scope cloud dictation to the trusted calling window’s workspace route.
+
 - Include pinned tokenizer files in local Whisper model downloads and repair
   existing downloads so first-use dictation can run without networking.
 

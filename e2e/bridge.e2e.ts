@@ -18,12 +18,19 @@ declare global {
 }
 let server: Server, app: ElectronApplication, page: Page, profile: string, origin: string
 let signedIn = true
+let transcriptionReferer: string | undefined
 
 test.beforeAll(async () => {
   server = createServer((request, response) => {
     if (request.url === '/api/auth/session') {
       response.setHeader('Content-Type', 'application/json')
       response.end(JSON.stringify({ authenticated: signedIn }))
+      return
+    }
+    if (request.url === '/api/v1/transcribe') {
+      transcriptionReferer = request.headers.referer
+      response.setHeader('Content-Type', 'application/json')
+      response.end(JSON.stringify({ text: 'Fixture transcript' }))
       return
     }
     response.setHeader('Content-Type', 'text/html')
@@ -90,6 +97,19 @@ test('unknown methods and invalid native arguments are rejected in the main proc
     )
   })
   expect(failures).toEqual([true, true, true, true])
+})
+test('cloud dictation retains the calling window workspace route', async () => {
+  await page.goto(origin + '/w/paid-qa/personal/chat')
+  const result = await page.evaluate(() =>
+    window.overlayDesktop.call('transcription.transcribe', {
+      audio: new Uint8Array([1, 2, 3]),
+      mime: 'audio/wav',
+      model: 'cloud'
+    })
+  )
+  expect(result.text).toBe('Fixture transcript')
+  expect(transcriptionReferer).toBe(origin + '/w/paid-qa/personal/chat')
+  await page.goto(origin + '/app/work')
 })
 test('panels load web routes with the same cookie partition, and sign-out stops native state', async () => {
   await app.evaluate(async ({ session }) => {
