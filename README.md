@@ -6,6 +6,8 @@ and automatic updates. Web features ship to desktop through the same app routes.
 
 CI exercises the native recorder HUD with a synthetic media device as well as
 direct transcription, so capture startup and preload isolation are both covered.
+Local capture is decoded to 16 kHz mono PCM WAV in the isolated preload before
+native inference; cloud transcription keeps its original capture container.
 
 ```sh
 npm ci

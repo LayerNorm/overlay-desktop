@@ -46,6 +46,23 @@ test('the native HUD captures audio and delivers the transcription without a pre
     await expect.poll(() => page.evaluate(() => (window as unknown as { recorderResult: string }).recorderResult)).toBe('Recorder acceptance passed')
     expect(audioBytes).toBeGreaterThan(100)
     expect((await page.evaluate(() => window.overlayDesktop.call('transcription.status', undefined))).recording).toBe(false)
+    const firstRequestBytes = audioBytes
+    await hud.evaluate(() => {
+      const local = window as unknown as { recorder: { onStart(callback: (model: string, epoch: number) => void): void }; cancelledCaptureEpoch: number }
+      local.recorder.onStart((_model, epoch) => { local.cancelledCaptureEpoch = epoch })
+    })
+    await page.evaluate(() => window.overlayDesktop.call('transcription.start', { target: 'system', model: 'cloud' }))
+    await expect(hud.getByRole('status')).toHaveText('Listening…')
+    await page.evaluate(() => window.overlayDesktop.call('auth.signedOut', undefined))
+    const staleRejected = await hud.evaluate(async () => {
+      const local = window as unknown as { recorder: { transcribe(input: unknown, epoch: number): Promise<unknown> }; cancelledCaptureEpoch: number }
+      try {
+        await local.recorder.transcribe({ audio: new Uint8Array([1, 2, 3]), mime: 'audio/wav', model: 'cloud' }, local.cancelledCaptureEpoch)
+        return false
+      } catch { return true }
+    })
+    expect(staleRejected).toBe(true)
+    expect(audioBytes).toBe(firstRequestBytes)
   } finally {
     await app.close()
     server.closeAllConnections()

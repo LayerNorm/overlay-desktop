@@ -130,13 +130,14 @@ function cancelRecording(): void {
 function startRecording(target: 'system' | 'composer', selectedModel: string): void {
   if (recording || processing || transcriptionBusy) throw new Error('Dictation is already running.')
   recording = true
+  sessionEpoch++
   recordingTarget = target
   if (target === 'system') {
     const epoch = sessionEpoch
     void hudReady.then(() => {
       if (recording && sessionEpoch === epoch) {
         hud?.showInactive()
-        hud?.webContents.send('recorder:start', selectedModel)
+        hud?.webContents.send('recorder:start', selectedModel, epoch)
       }
     })
   } else emitDesktopEvent('transcription.start', { target, model: selectedModel })
@@ -538,7 +539,7 @@ export function registerDesktopRuntime(): void {
       permission === 'media' &&
       contents.getURL().startsWith('file:')
   )
-  ipcMain.handle('recorder:transcribe', async (event, input: unknown) => {
+  ipcMain.handle('recorder:transcribe', async (event, input: unknown, recordingEpoch: unknown) => {
     if (
       !hud ||
       event.sender !== hud.webContents ||
@@ -546,6 +547,7 @@ export function registerDesktopRuntime(): void {
       !event.senderFrame?.url.startsWith('file:')
     )
       throw new Error('Untrusted recorder.')
+    if (!processing || recordingEpoch !== sessionEpoch) throw new Error('Dictation was cancelled.')
     const epoch = sessionEpoch
     try {
       const result = await transcribe(methodSchemas['transcription.transcribe'].parse(input))
@@ -554,9 +556,11 @@ export function registerDesktopRuntime(): void {
       emitDesktopEvent('transcription.final', result)
       return result
     } finally {
-      recording = false
-      processing = false
-      hud.hide()
+      if (epoch === sessionEpoch) {
+        recording = false
+        processing = false
+        hud.hide()
+      }
     }
   })
   ipcMain.on('recorder:cancel', (event) => {

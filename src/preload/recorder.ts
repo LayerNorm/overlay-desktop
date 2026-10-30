@@ -1,8 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import { prepareTranscriptionAudio } from './transcription-audio'
 if (process.isMainFrame && location.protocol === 'file:')
   contextBridge.exposeInMainWorld('recorder', {
-    onStart: (callback: (model: string) => void) => {
-      ipcRenderer.on('recorder:start', (_event, model) => callback(model))
+    onStart: (callback: (model: string, epoch: number) => void) => {
+      ipcRenderer.on('recorder:start', (_event, model, epoch) => callback(model, epoch))
     },
     onStop: (callback: () => void) => {
       ipcRenderer.on('recorder:stop', callback)
@@ -10,6 +11,6 @@ if (process.isMainFrame && location.protocol === 'file:')
     onCancel: (callback: () => void) => {
       ipcRenderer.on('recorder:cancel', callback)
     },
-    transcribe: (input: unknown) => ipcRenderer.invoke('recorder:transcribe', input),
+    transcribe: async (input: unknown, epoch: number) => ipcRenderer.invoke('recorder:transcribe', await prepareTranscriptionAudio(input), epoch),
     cancel: () => ipcRenderer.send('recorder:cancel')
   })
