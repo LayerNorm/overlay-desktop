@@ -1,6 +1,12 @@
 name: Clean public clone
 
 on:
+  workflow_dispatch:
+    inputs:
+      local_transcription:
+        description: Run the pinned local-model transcription smoke
+        type: boolean
+        default: false
   pull_request:
   push:
     branches:
@@ -51,6 +57,10 @@ jobs:
 
       - name: Exercise the sandboxed Electron bridge
         run: npx playwright test e2e/bridge.e2e.ts e2e/migration.e2e.ts
+
+      - name: Transcribe synthetic speech with a pinned local model
+        if: ${{ inputs.local_transcription == true }}
+        run: npx playwright test e2e/transcription.e2e.ts
 
       - name: Package an unsigned Apple Silicon app
         env:

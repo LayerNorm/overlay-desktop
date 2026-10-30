@@ -57,3 +57,8 @@ Signing and notarization remain in CI; the publication gate remains separate.
 Clean-clone CI also seeds a throwaway legacy file-origin browser profile and
 launches the real upgrade path, verifying private transcript export, secret
 exclusion, retained recordings/journals and a once-only migration notice.
+
+For real local-model QA, dispatch Clean public clone with `local_transcription`
+enabled. The macOS runner synthesizes a test phrase and downloads the pinned
+Whisper Base model before transcribing through the actual sandboxed bridge.
+This is an opt-in network/model smoke, separate from the ordinary fixture suite.
