@@ -1,8 +1,8 @@
 # Overlay macOS Release Process
 
-Official desktop releases are frozen until every Gate B requirement in this
-guide is signed off. The workflow keeps both
-release jobs disabled with `if: ${{ false }}` until that review is complete.
+Official desktop publication is frozen until every Gate B requirement in this
+guide is signed off. The protected build job can sign/notarize acceptance
+candidates; the publish job remains disabled with `if: ${{ false }}`.
 
 ## Supported artifact
 
@@ -60,6 +60,13 @@ The manual workflow requires a full 40-character `release_source_sha`.
    immutable workflow artifact.
 6. Only the separate protected publish job creates the narrowly scoped GitHub
    App token and uploads the already-verified files.
+
+The signed candidate also boots on the clean macOS runner with clean and legacy
+profiles. Playwright connects to the actual signed app's renderer (no main-process
+inspector or signature changes), verifies the sandbox, panels, sign-out, restart
+cookies and preserved upgrade data. Native upgrade-dialog automation is CI-only.
+Evidence is uploaded separately; this supplements physical microphone/hotkey and
+notification-click acceptance and does not sign off the independent Gate B review.
 
 The publishing token must never be available to install scripts, compilers,
 packagers, or artifact verification.
