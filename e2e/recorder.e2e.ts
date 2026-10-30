@@ -32,6 +32,7 @@ test('the native HUD captures audio and delivers the transcription without a pre
     await app.firstWindow()
     await expect.poll(() => app.windows().some(page => page.url().startsWith(origin))).toBe(true)
     const page = app.windows().find(page => page.url().startsWith(origin))!
+    await expect.poll(() => app.windows().some(page => page.url().includes('recorder.html'))).toBe(true)
     const hud = app.windows().find(page => page.url().includes('recorder.html'))!
     await page.evaluate(() => {
       Object.assign(window, { recorderResult: null })

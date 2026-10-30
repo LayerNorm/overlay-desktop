@@ -81,6 +81,7 @@ test('a pinned local model transcribes synthetic speech through the native bridg
       const bridge = (window as unknown as { overlayDesktop: DesktopBridge }).overlayDesktop
       bridge.on('transcription.final', result => Object.assign(window, { offlineHudTranscript: result.text }))
     })
+    await expect.poll(() => app!.windows().some(page => page.url().includes('recorder.html'))).toBe(true)
     const hud = app.windows().find(page => page.url().includes('recorder.html'))!
     await page.evaluate(() => (window as unknown as { overlayDesktop: DesktopBridge }).overlayDesktop.call('transcription.start', { target: 'system', model: 'openai_whisper-base' }))
     await expect(hud.getByRole('status')).toHaveText('Listening…')
