@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Include pinned tokenizer files in local Whisper model downloads and repair
+  existing downloads so first-use dictation can run without networking.
+
 - Keep floating panel identity across conversation URL changes and reloads.
 
 - Let Quit finish while a floating panel is open, while keeping ordinary panel

@@ -63,3 +63,8 @@ enabled. The macOS runner synthesizes a test phrase and downloads the pinned
 Whisper Base model before transcribing through the actual sandboxed bridge. The ASR helper runs
 under a test-only macOS sandbox that denies networking, verifying offline inference.
 This is an opt-in network/model smoke, separate from the ordinary fixture suite.
+
+Whisper downloads include pinned model-specific tokenizer files. Older downloads
+without them appear as needing Download; this repairs their tokenizer without
+replacing existing model weights. Transcription refuses an incomplete offline
+setup instead of letting the helper fetch dependencies implicitly.
