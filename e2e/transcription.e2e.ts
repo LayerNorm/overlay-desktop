@@ -41,7 +41,7 @@ test('a pinned local model transcribes synthetic speech through the native bridg
   let app: Awaited<ReturnType<typeof electron.launch>> | undefined
   try {
     app = await electron.launch({
-      args: ['-r', offlineHook, '.', `--user-data-dir=${join(directory, 'profile')}`],
+      args: ['-r', offlineHook, '.', `--user-data-dir=${join(directory, 'profile')}`, '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', `--use-file-for-fake-audio-capture=${audio}`],
       env: { ...process.env, APP_SERVER_URL: origin }
     })
     await expect
@@ -74,6 +74,21 @@ test('a pinned local model transcribes synthetic speech through the native bridg
     ).toBe(1)
     expect(result.text.toLowerCase()).toContain('desktop')
     expect(result.text.toLowerCase()).toContain('work together')
+    // Exercise the MediaRecorder container produced by the real HUD too; a
+    // direct WAV call alone cannot prove that local dictation decodes capture.
+    await page.evaluate(() => {
+      Object.assign(window, { offlineHudTranscript: null })
+      const bridge = (window as unknown as { overlayDesktop: DesktopBridge }).overlayDesktop
+      bridge.on('transcription.final', result => Object.assign(window, { offlineHudTranscript: result.text }))
+    })
+    const hud = app.windows().find(page => page.url().includes('recorder.html'))!
+    await page.evaluate(() => (window as unknown as { overlayDesktop: DesktopBridge }).overlayDesktop.call('transcription.start', { target: 'system', model: 'openai_whisper-base' }))
+    await expect(hud.getByRole('status')).toHaveText('Listening…')
+    await hud.waitForTimeout(5000)
+    await page.evaluate(() => (window as unknown as { overlayDesktop: DesktopBridge }).overlayDesktop.call('transcription.stop', undefined))
+    await expect.poll(() => page.evaluate(() => (window as unknown as { offlineHudTranscript: string | null }).offlineHudTranscript), { timeout: 180_000 }).toMatch(/desktop/i)
+    expect(await page.evaluate(() => (window as unknown as { offlineHudTranscript: string }).offlineHudTranscript.toLowerCase())).toContain('work together')
+    expect(await app.evaluate(() => (globalThis as unknown as { offlineTranscriptions: number }).offlineTranscriptions)).toBe(2)
   } finally {
     await app?.close().catch(() => {})
     await new Promise<void>((resolve) => server.close(() => resolve()))
