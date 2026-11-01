@@ -8,6 +8,7 @@ test('the native HUD captures audio and delivers the transcription without a pre
   const profile = mkdtempSync(join(tmpdir(), 'overlay-recorder-qa-'))
   let audioBytes = 0
   let holdAuth = true
+  let sessionRequests = 0
   let authAllowed = true
   const pendingAuth: ServerResponse[] = []
   let failNext = false
@@ -16,6 +17,7 @@ test('the native HUD captures audio and delivers the transcription without a pre
   const pendingTranscriptions: ServerResponse[] = []
   const server = createServer((request, response) => {
     if (request.url === '/api/auth/session') {
+      sessionRequests++
       response.setHeader('Content-Type', 'application/json')
       if (holdAuth) pendingAuth.push(response)
       else response.end(JSON.stringify({ authenticated: authAllowed }))
@@ -144,13 +146,19 @@ test('the native HUD captures audio and delivers the transcription without a pre
     console.info(
       `Repeated native PCM frame: ${(await page.evaluate(() => window.overlayDesktop.call('transcription.status', undefined))).firstAudioMs}ms`
     )
-    await hud.waitForTimeout(150)
+    // Cross the native session cache window: stopping an admitted take must
+    // upload directly instead of adding another session-check round trip.
+    await hud.waitForTimeout(5200)
+    const sessionsBeforeStop = sessionRequests
     await hud.getByRole('button', { name: 'Finish dictation' }).click()
     await expect(hud.getByRole('button', { name: 'Retry transcription' })).toBeVisible()
+    expect(sessionRequests).toBe(sessionsBeforeStop)
     await expect(hud.locator('#notice')).not.toContainText('remote method')
     const beforeRetry = requests
+    const sessionsBeforeRetry = sessionRequests
     await hud.getByRole('button', { name: 'Retry transcription' }).click()
     await expect.poll(() => requests).toBe(beforeRetry + 1)
+    expect(sessionRequests).toBe(sessionsBeforeRetry + 1)
     await expect
       .poll(
         async () =>
@@ -229,6 +237,9 @@ test('the native HUD captures audio and delivers the transcription without a pre
     // next take starts. Withhold the flush on the real shared AudioContext.
     const overlap = await hud.evaluate(async () => {
       const { captureAudio } = await import(new URL('./dictation-audio.js', location.href).href)
+      const enumerate = navigator.mediaDevices.enumerateDevices.bind(navigator.mediaDevices)
+      navigator.mediaDevices.enumerateDevices = () => new Promise(() => {})
+      navigator.mediaDevices.dispatchEvent(new Event('devicechange'))
       const post = MessagePort.prototype.postMessage
       Object.defineProperty(MessagePort.prototype, 'postMessage', {
         configurable: true,
@@ -267,6 +278,8 @@ test('the native HUD captures audio and delivers the transcription without a pre
         first.cancel()
         second?.cancel()
         MessagePort.prototype.postMessage = post
+        navigator.mediaDevices.enumerateDevices = enumerate
+        navigator.mediaDevices.dispatchEvent(new Event('devicechange'))
       }
     })
     expect(overlap.cancelledStop).toBe('AbortError')

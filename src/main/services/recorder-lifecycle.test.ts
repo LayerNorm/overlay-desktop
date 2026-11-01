@@ -15,15 +15,21 @@ async function harness() {
   vi.resetModules()
   const pending: ReturnType<typeof deferred<ReturnType<typeof microphone>>>[] = []
   const connected: unknown[] = []
+  const deviceEvents = new EventTarget()
+  const enumerateDevices = vi.fn<
+    () => Promise<{ kind: string; deviceId: string; label: string }[]>
+  >(async () => [])
+  const getUserMedia = vi.fn((_constraints: unknown) => {
+    const next = deferred<ReturnType<typeof microphone>>()
+    pending.push(next)
+    return next.promise
+  })
   const node = () => ({ connect: vi.fn(), disconnect: vi.fn() })
   vi.stubGlobal('navigator', {
     mediaDevices: {
-      enumerateDevices: async () => [],
-      getUserMedia: () => {
-        const next = deferred<ReturnType<typeof microphone>>()
-        pending.push(next)
-        return next.promise
-      }
+      enumerateDevices,
+      addEventListener: deviceEvents.addEventListener.bind(deviceEvents),
+      getUserMedia
     }
   })
   vi.stubGlobal(
@@ -67,9 +73,19 @@ async function harness() {
       disconnect = () => {}
     }
   )
-  const { captureAudio, prepareAudio } = await import('../../native/dictation-audio.js')
+  const { captureAudio, prepareAudio, prepareMicrophone } =
+    await import('../../native/dictation-audio.js')
   const start = () => captureAudio({ onReady: vi.fn(), onFallback: vi.fn(), onError: vi.fn() })
-  return { start, pending, connected, prepareAudio }
+  return {
+    start,
+    pending,
+    connected,
+    prepareAudio,
+    prepareMicrophone,
+    enumerateDevices,
+    getUserMedia,
+    deviceEvents
+  }
 }
 afterEach(() => vi.unstubAllGlobals())
 it('cancellation before permission resolves releases the late microphone without connecting it', async () => {
@@ -105,8 +121,59 @@ it('a late old microphone cannot replace or disconnect a newer take', async () =
 
 it('prepares and suspends the processor without acquiring a microphone', async () => {
   const h = await harness()
+  h.prepareMicrophone()
   const context = await h.prepareAudio()
   expect(context.state).toBe('suspended')
   expect(h.pending).toHaveLength(0)
   expect(h.connected).toHaveLength(0)
+})
+
+it('opens the default microphone without awaiting a pending initial device scan', async () => {
+  const h = await harness()
+  h.enumerateDevices.mockReturnValue(new Promise(() => {}))
+  const take = h.start()
+  expect(h.pending).toHaveLength(1)
+  expect(h.getUserMedia).toHaveBeenCalledWith({ audio: { channelCount: 1, sampleRate: 16000 } })
+  h.pending[0].resolve(microphone())
+  await take.ready
+  take.cancel()
+})
+
+it('uses the cached built-in microphone while a refresh is pending', async () => {
+  const h = await harness()
+  h.enumerateDevices.mockResolvedValue([
+    { kind: 'audioinput', deviceId: 'built-in', label: 'MacBook Pro Microphone' }
+  ])
+  h.prepareMicrophone()
+  await Promise.resolve()
+  h.enumerateDevices.mockReturnValue(new Promise(() => {}))
+  h.deviceEvents.dispatchEvent(new Event('devicechange'))
+  const take = h.start()
+  expect(h.getUserMedia).toHaveBeenCalledWith({
+    audio: { channelCount: 1, sampleRate: 16000, deviceId: { exact: 'built-in' } }
+  })
+  h.pending[0].resolve(microphone())
+  await take.ready
+  take.cancel()
+})
+
+it('keeps the newest device change when an older scan finishes late', async () => {
+  const h = await harness()
+  const old = deferred<Awaited<ReturnType<typeof h.enumerateDevices>>>()
+  h.enumerateDevices.mockReturnValueOnce(old.promise)
+  h.prepareMicrophone()
+  h.enumerateDevices.mockResolvedValue([
+    { kind: 'audioinput', deviceId: 'new-built-in', label: 'Built-in Microphone' }
+  ])
+  h.deviceEvents.dispatchEvent(new Event('devicechange'))
+  await Promise.resolve()
+  old.resolve([{ kind: 'audioinput', deviceId: 'old-built-in', label: 'Built-in Microphone' }])
+  await Promise.resolve()
+  const take = h.start()
+  expect(h.getUserMedia).toHaveBeenCalledWith({
+    audio: { channelCount: 1, sampleRate: 16000, deviceId: { exact: 'new-built-in' } }
+  })
+  h.pending[0].resolve(microphone())
+  await take.ready
+  take.cancel()
 })

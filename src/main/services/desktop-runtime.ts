@@ -214,15 +214,19 @@ function stopRecording(): void {
     hud?.webContents.send('recorder:stop')
   } else emitDesktopEvent('transcription.stop', undefined)
 }
+type TranscriptionExecution = {
+  signal?: AbortSignal
+  cloudAdmission?: Promise<void>
+}
 async function transcribe(
   input: Input<'transcription.transcribe'>,
   sourceUrl?: string,
-  signal?: AbortSignal
+  execution: TranscriptionExecution = {}
 ): Promise<{ text: string }> {
   if (transcriptionBusy) throw new Error('Dictation is still processing.')
   transcriptionBusy = true
   try {
-    const result = await transcribeAudio(input, sourceUrl, signal)
+    const result = await transcribeAudio(input, sourceUrl, execution)
     return { ...result, text: result.text.trim() }
   } finally {
     transcriptionBusy = false
@@ -231,10 +235,13 @@ async function transcribe(
 async function transcribeAudio(
   input: Input<'transcription.transcribe'>,
   sourceUrl?: string,
-  signal?: AbortSignal
+  { signal, cloudAdmission }: TranscriptionExecution = {}
 ): Promise<{ text: string }> {
   if (input.model === 'cloud') {
-    await authenticated()
+    // The HUD already admitted this take while the microphone was opening.
+    // Standalone composer uploads retain their own admission check. The web
+    // endpoint always rechecks authentication, workspace access and billing.
+    await (cloudAdmission ?? authenticated())
     signal?.throwIfAborted()
     const form = new FormData()
     form.append(
@@ -683,7 +690,7 @@ export function registerDesktopRuntime(): void {
       const result = await transcribe(
         methodSchemas['transcription.transcribe'].parse(input),
         undefined,
-        takeAbort.signal
+        { signal: takeAbort.signal, cloudAdmission: takeAdmission }
       )
       if (epoch !== sessionEpoch) throw new Error('Dictation was cancelled.')
       if (!result.text.trim()) throw new Error('No speech detected. Try again.')

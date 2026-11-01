@@ -1,5 +1,6 @@
 export const SAMPLE_RATE: number
 export function prepareAudio(): Promise<AudioContext>
+export function prepareMicrophone(): void
 export function encodeWav(chunks: Float32Array[]): Uint8Array
 export function captureAudio(options: {
   deviceId?: string

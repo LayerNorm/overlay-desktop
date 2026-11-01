@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Discover the automatic microphone at launch and on device changes without blocking a recording; reuse each take's admission check to avoid a second cloud-session round trip after release.
 - Keep a new recording active when a cancelled take finishes its pending worklet flush.
 - Normalize provider whitespace and preserve spacing between successive dictation insertions.
 - Register initial window visibility before navigation to avoid missing a fast first render.
