@@ -132,6 +132,7 @@ async function microphone(deviceId, signal, onFallback) {
     )
       throw error
     signal.throwIfAborted()
+    if (deviceId === 'auto' && preferredMicrophone === selected) preferredMicrophone = ''
     stream = await open('')
     onFallback('Using the default microphone')
   }

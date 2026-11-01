@@ -177,3 +177,26 @@ it('keeps the newest device change when an older scan finishes late', async () =
   await take.ready
   take.cancel()
 })
+
+it('forgets a cached microphone that fails while device discovery is unavailable', async () => {
+  const h = await harness()
+  h.enumerateDevices.mockResolvedValue([
+    { kind: 'audioinput', deviceId: 'removed', label: 'Built-in Microphone' }
+  ])
+  h.prepareMicrophone()
+  await Promise.resolve()
+  h.enumerateDevices.mockReturnValue(new Promise(() => {}))
+  h.getUserMedia.mockRejectedValueOnce(
+    Object.assign(new Error('Removed'), { name: 'NotFoundError' })
+  )
+  const first = h.start()
+  await vi.waitFor(() => expect(h.pending).toHaveLength(1))
+  h.pending[0].resolve(microphone())
+  await first.ready
+  first.cancel()
+  const second = h.start()
+  expect(h.getUserMedia).toHaveBeenLastCalledWith({ audio: { channelCount: 1, sampleRate: 16000 } })
+  h.pending[1].resolve(microphone())
+  await second.ready
+  second.cancel()
+})

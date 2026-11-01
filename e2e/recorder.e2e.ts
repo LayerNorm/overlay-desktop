@@ -12,6 +12,8 @@ test('the native HUD captures audio and delivers the transcription without a pre
   let authAllowed = true
   const pendingAuth: ServerResponse[] = []
   let failNext = false
+  let rejectNextUpload = false
+  const uploadKeys: (string | string[] | undefined)[] = []
   let requests = 0
   let holdTranscription = false
   const pendingTranscriptions: ServerResponse[] = []
@@ -28,6 +30,13 @@ test('the native HUD captures audio and delivers the transcription without a pre
       request.on('end', () => {
         response.setHeader('Content-Type', 'application/json')
         requests++
+        uploadKeys.push(request.headers['idempotency-key'])
+        if (rejectNextUpload) {
+          rejectNextUpload = false
+          response.statusCode = 401
+          response.end(JSON.stringify({ error: 'expired_session' }))
+          return
+        }
         if (holdTranscription) {
           pendingTranscriptions.push(response)
           return
@@ -167,6 +176,49 @@ test('the native HUD captures audio and delivers the transcription without a pre
       )
       .toMatch(/ready|delivered/)
     await hud.getByRole('button', { name: 'Dismiss dictation' }).click()
+    // A credential can expire during speech. Refresh only after a 401 and
+    // retry the upload once with the same operation identity.
+    rejectNextUpload = true
+    const uploadsBeforeRefresh = requests
+    const sessionsBeforeRefresh = sessionRequests
+    await page.evaluate(() => {
+      Object.assign(window, { recorderResult: null })
+      return window.overlayDesktop.call('transcription.start', { target: 'system', model: 'cloud' })
+    })
+    await expect(hud.getByRole('status')).toHaveText('Listening…')
+    await hud.waitForTimeout(150)
+    await page.evaluate(() => window.overlayDesktop.call('transcription.stop', undefined))
+    await expect
+      .poll(() =>
+        page.evaluate(() => (window as unknown as { recorderResult: string | null }).recorderResult)
+      )
+      .toBe('Recorder acceptance passed')
+    expect(requests).toBe(uploadsBeforeRefresh + 2)
+    expect(sessionRequests).toBe(sessionsBeforeRefresh + 1)
+    expect(uploadKeys.at(-1)).toBeTruthy()
+    expect(uploadKeys.at(-1)).toBe(uploadKeys.at(-2))
+    await hud.getByRole('button', { name: 'Dismiss dictation' }).click()
+    // Cancel while that refresh request is pending: it must not block a new
+    // take or replay the old upload when the session response arrives later.
+    rejectNextUpload = true
+    const pendingBeforeRefresh = pendingAuth.length
+    const finalsBeforeRefreshCancel = await page.evaluate(
+      () => (window as unknown as { finalCount: number }).finalCount
+    )
+    await page.evaluate(() =>
+      window.overlayDesktop.call('transcription.start', { target: 'system', model: 'cloud' })
+    )
+    await expect(hud.getByRole('status')).toHaveText('Listening…')
+    holdAuth = true
+    await hud.waitForTimeout(150)
+    await page.evaluate(() => window.overlayDesktop.call('transcription.stop', undefined))
+    await expect.poll(() => pendingAuth.length).toBe(pendingBeforeRefresh + 1)
+    await hud.getByRole('button', { name: 'Dismiss dictation' }).click()
+    await expect.poll(() => pendingAuth.at(-1)?.destroyed).toBe(true)
+    expect(
+      await page.evaluate(() => (window as unknown as { finalCount: number }).finalCount)
+    ).toBe(finalsBeforeRefreshCancel)
+    holdAuth = false
     // Dismiss while the provider is in flight: abort its request and reject late paste.
     holdTranscription = true
     const beforeCancel = await page.evaluate(

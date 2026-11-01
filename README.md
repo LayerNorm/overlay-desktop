@@ -60,6 +60,9 @@ background; a pending scan never blocks capture. A cloud take reuses its initial
 native session admission at release. Standalone uploads and explicit retries
 retain admission, and the web endpoint always enforces current authentication,
 workspace permissions, plan limits and billing before provider work.
+A 401 response triggers one forced session refresh and replay with the same
+idempotency key. Cancellation aborts that refresh; provider failures still require
+an explicit retry.
 
 The macOS CI wrapper imports the existing signing certificate into an ephemeral
 keychain using a separate random keychain password, then passes `CSC_KEYCHAIN`

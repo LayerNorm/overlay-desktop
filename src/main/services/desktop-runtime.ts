@@ -91,13 +91,19 @@ const settingsPath = () => join(app.getPath('userData'), 'web-shell-settings.jso
 function persist(): void {
   writeFileSync(settingsPath(), JSON.stringify({ keys, model, inputDeviceId }), { mode: 0o600 })
 }
-async function authenticated(): Promise<void> {
-  if (Date.now() - lastSessionCheck > 5000) {
+async function authenticated({
+  forceRefresh = false,
+  signal
+}: { forceRefresh?: boolean; signal?: AbortSignal } = {}): Promise<void> {
+  signal?.throwIfAborted()
+  if (forceRefresh || Date.now() - lastSessionCheck > 5000) {
     const response = await session
       .fromPartition(WEB_SHELL_PARTITION)
       .fetch(`${getWebShellOrigin()}/api/auth/session`, {
         redirect: 'error',
-        signal: AbortSignal.timeout(15_000)
+        signal: signal
+          ? AbortSignal.any([signal, AbortSignal.timeout(15_000)])
+          : AbortSignal.timeout(15_000)
       })
     sessionAuthenticated = response.ok && (await response.json()).authenticated === true
     lastSessionCheck = Date.now()
@@ -166,7 +172,8 @@ function startRecording(target: 'system' | 'composer', selectedModel: string): v
   retainedResult = undefined
   firstAudioMs = undefined
   phase = 'opening'
-  takeAdmission = selectedModel === 'cloud' ? authenticated() : Promise.resolve()
+  takeAdmission =
+    selectedModel === 'cloud' ? authenticated({ signal: takeAbort.signal }) : Promise.resolve()
   void takeAdmission.catch(() => {})
   recordingDestination = target === 'system' ? systemUtils.dictationTarget() : Promise.resolve(null)
   recording = true
@@ -241,7 +248,7 @@ async function transcribeAudio(
     // The HUD already admitted this take while the microphone was opening.
     // Standalone composer uploads retain their own admission check. The web
     // endpoint always rechecks authentication, workspace access and billing.
-    await (cloudAdmission ?? authenticated())
+    await (cloudAdmission ?? authenticated({ signal }))
     signal?.throwIfAborted()
     const form = new FormData()
     form.append(
@@ -260,17 +267,25 @@ async function transcribeAudio(
       source.origin === getWebShellOrigin()
         ? `${source.origin}${source.pathname}`
         : getWebShellOrigin()
-    const response = await session
-      .fromPartition(WEB_SHELL_PARTITION)
-      .fetch(`${getWebShellOrigin()}/api/v1/transcribe`, {
+    const idempotencyKey = `desktop:${randomUUID()}`
+    const uploadSignal = signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(120_000)])
+      : AbortSignal.timeout(120_000)
+    const upload = () =>
+      session.fromPartition(WEB_SHELL_PARTITION).fetch(`${getWebShellOrigin()}/api/v1/transcribe`, {
         method: 'POST',
-        headers: { 'Idempotency-Key': `desktop:${randomUUID()}`, Referer: referer },
+        headers: { 'Idempotency-Key': idempotencyKey, Referer: referer },
         body: form,
         redirect: 'error',
-        signal: signal
-          ? AbortSignal.any([signal, AbortSignal.timeout(120_000)])
-          : AbortSignal.timeout(120_000)
+        signal: uploadSignal
       })
+    let response = await upload()
+    if (response.status === 401) {
+      await response.body?.cancel().catch(() => {})
+      await authenticated({ forceRefresh: true, signal: uploadSignal })
+      uploadSignal.throwIfAborted()
+      response = await upload()
+    }
     if (!response.ok) {
       const failure = await response.json().catch(() => null)
       if (failure?.error === 'hosted_transcription_requires_paid_plan')
@@ -677,7 +692,7 @@ export function registerDesktopRuntime(): void {
     if (phase === 'error') {
       takeAdmission =
         methodSchemas['transcription.transcribe'].parse(input).model === 'cloud'
-          ? authenticated()
+          ? authenticated({ signal: takeAbort.signal })
           : Promise.resolve()
       void takeAdmission.catch(() => {})
     }
