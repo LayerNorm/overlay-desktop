@@ -8,14 +8,19 @@ test('the native HUD captures audio and delivers the transcription without a pre
   const profile = mkdtempSync(join(tmpdir(), 'overlay-recorder-qa-'))
   let audioBytes = 0
   let holdAuth = true
+  let sessionRequests = 0
   let authAllowed = true
   const pendingAuth: ServerResponse[] = []
   let failNext = false
+  let rejectNextUpload = false
+  let sessionsAtRejectedUpload = 0
+  const uploadKeys: (string | string[] | undefined)[] = []
   let requests = 0
   let holdTranscription = false
   const pendingTranscriptions: ServerResponse[] = []
   const server = createServer((request, response) => {
     if (request.url === '/api/auth/session') {
+      sessionRequests++
       response.setHeader('Content-Type', 'application/json')
       if (holdAuth) pendingAuth.push(response)
       else response.end(JSON.stringify({ authenticated: authAllowed }))
@@ -26,6 +31,14 @@ test('the native HUD captures audio and delivers the transcription without a pre
       request.on('end', () => {
         response.setHeader('Content-Type', 'application/json')
         requests++
+        uploadKeys.push(request.headers['idempotency-key'])
+        if (rejectNextUpload) {
+          rejectNextUpload = false
+          sessionsAtRejectedUpload = sessionRequests
+          response.statusCode = 401
+          response.end(JSON.stringify({ error: 'expired_session' }))
+          return
+        }
         if (holdTranscription) {
           pendingTranscriptions.push(response)
           return
@@ -144,13 +157,19 @@ test('the native HUD captures audio and delivers the transcription without a pre
     console.info(
       `Repeated native PCM frame: ${(await page.evaluate(() => window.overlayDesktop.call('transcription.status', undefined))).firstAudioMs}ms`
     )
-    await hud.waitForTimeout(150)
+    // Cross the native session cache window: stopping an admitted take must
+    // upload directly instead of adding another session-check round trip.
+    await hud.waitForTimeout(5200)
+    const sessionsBeforeStop = sessionRequests
     await hud.getByRole('button', { name: 'Finish dictation' }).click()
     await expect(hud.getByRole('button', { name: 'Retry transcription' })).toBeVisible()
+    expect(sessionRequests).toBe(sessionsBeforeStop)
     await expect(hud.locator('#notice')).not.toContainText('remote method')
     const beforeRetry = requests
+    const sessionsBeforeRetry = sessionRequests
     await hud.getByRole('button', { name: 'Retry transcription' }).click()
     await expect.poll(() => requests).toBe(beforeRetry + 1)
+    expect(sessionRequests).toBe(sessionsBeforeRetry + 1)
     await expect
       .poll(
         async () =>
@@ -159,6 +178,48 @@ test('the native HUD captures audio and delivers the transcription without a pre
       )
       .toMatch(/ready|delivered/)
     await hud.getByRole('button', { name: 'Dismiss dictation' }).click()
+    // A credential can expire during speech. Refresh only after a 401 and
+    // retry the upload once with the same operation identity.
+    rejectNextUpload = true
+    const uploadsBeforeRefresh = requests
+    await page.evaluate(() => {
+      Object.assign(window, { recorderResult: null })
+      return window.overlayDesktop.call('transcription.start', { target: 'system', model: 'cloud' })
+    })
+    await expect(hud.getByRole('status')).toHaveText('Listening…')
+    await hud.waitForTimeout(150)
+    await page.evaluate(() => window.overlayDesktop.call('transcription.stop', undefined))
+    await expect
+      .poll(() =>
+        page.evaluate(() => (window as unknown as { recorderResult: string | null }).recorderResult)
+      )
+      .toBe('Recorder acceptance passed')
+    expect(requests).toBe(uploadsBeforeRefresh + 2)
+    expect(sessionRequests).toBe(sessionsAtRejectedUpload + 1)
+    expect(uploadKeys.at(-1)).toBeTruthy()
+    expect(uploadKeys.at(-1)).toBe(uploadKeys.at(-2))
+    await hud.getByRole('button', { name: 'Dismiss dictation' }).click()
+    // Cancel while that refresh request is pending: it must not block a new
+    // take or replay the old upload when the session response arrives later.
+    rejectNextUpload = true
+    const pendingBeforeRefresh = pendingAuth.length
+    const finalsBeforeRefreshCancel = await page.evaluate(
+      () => (window as unknown as { finalCount: number }).finalCount
+    )
+    await page.evaluate(() =>
+      window.overlayDesktop.call('transcription.start', { target: 'system', model: 'cloud' })
+    )
+    await expect(hud.getByRole('status')).toHaveText('Listening…')
+    holdAuth = true
+    await hud.waitForTimeout(150)
+    await page.evaluate(() => window.overlayDesktop.call('transcription.stop', undefined))
+    await expect.poll(() => pendingAuth.length).toBe(pendingBeforeRefresh + 1)
+    await hud.getByRole('button', { name: 'Dismiss dictation' }).click()
+    await expect.poll(() => pendingAuth.at(-1)?.destroyed).toBe(true)
+    expect(
+      await page.evaluate(() => (window as unknown as { finalCount: number }).finalCount)
+    ).toBe(finalsBeforeRefreshCancel)
+    holdAuth = false
     // Dismiss while the provider is in flight: abort its request and reject late paste.
     holdTranscription = true
     const beforeCancel = await page.evaluate(
@@ -229,6 +290,9 @@ test('the native HUD captures audio and delivers the transcription without a pre
     // next take starts. Withhold the flush on the real shared AudioContext.
     const overlap = await hud.evaluate(async () => {
       const { captureAudio } = await import(new URL('./dictation-audio.js', location.href).href)
+      const enumerate = navigator.mediaDevices.enumerateDevices.bind(navigator.mediaDevices)
+      navigator.mediaDevices.enumerateDevices = () => new Promise(() => {})
+      navigator.mediaDevices.dispatchEvent(new Event('devicechange'))
       const post = MessagePort.prototype.postMessage
       Object.defineProperty(MessagePort.prototype, 'postMessage', {
         configurable: true,
@@ -267,6 +331,8 @@ test('the native HUD captures audio and delivers the transcription without a pre
         first.cancel()
         second?.cancel()
         MessagePort.prototype.postMessage = post
+        navigator.mediaDevices.enumerateDevices = enumerate
+        navigator.mediaDevices.dispatchEvent(new Event('devicechange'))
       }
     })
     expect(overlap.cancelledStop).toBe('AbortError')

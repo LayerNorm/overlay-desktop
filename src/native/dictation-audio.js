@@ -2,6 +2,32 @@ export const SAMPLE_RATE = 16000
 const MAX_SAMPLES = (25 * 1024 * 1024 - 44) / 2
 let prepared
 let currentCapture
+let preferredMicrophone = ''
+let microphonePrepared = false
+let microphoneScan = 0
+
+function refreshMicrophoneChoice() {
+  const scan = ++microphoneScan
+  void navigator.mediaDevices
+    .enumerateDevices()
+    .then((devices) => {
+      if (scan !== microphoneScan) return
+      preferredMicrophone =
+        devices.find(
+          (device) =>
+            device.kind === 'audioinput' && /built.?in|macbook|imac|internal/i.test(device.label)
+        )?.deviceId ?? ''
+    })
+    .catch(() => {})
+}
+
+// Device discovery never acquires a microphone and never blocks a shortcut.
+export function prepareMicrophone() {
+  if (microphonePrepared) return
+  microphonePrepared = true
+  navigator.mediaDevices.addEventListener('devicechange', refreshMicrophoneChoice)
+  refreshMicrophoneChoice()
+}
 
 // Preparing a suspended graph never acquires a microphone or records idle audio.
 export function prepareAudio() {
@@ -86,6 +112,7 @@ export function encodeWav(chunks) {
 }
 
 async function microphone(deviceId, signal, onFallback) {
+  prepareMicrophone()
   const open = (id) =>
     navigator.mediaDevices.getUserMedia({
       audio: {
@@ -94,15 +121,7 @@ async function microphone(deviceId, signal, onFallback) {
         ...(id ? { deviceId: { exact: id } } : {})
       }
     })
-  let selected = deviceId
-  if (selected === 'auto') {
-    const devices = await navigator.mediaDevices.enumerateDevices().catch(() => [])
-    selected =
-      devices.find(
-        (device) =>
-          device.kind === 'audioinput' && /built.?in|macbook|imac|internal/i.test(device.label)
-      )?.deviceId ?? ''
-  }
+  const selected = deviceId === 'auto' ? preferredMicrophone : deviceId
   let stream
   try {
     stream = await open(selected)
@@ -113,6 +132,7 @@ async function microphone(deviceId, signal, onFallback) {
     )
       throw error
     signal.throwIfAborted()
+    if (deviceId === 'auto' && preferredMicrophone === selected) preferredMicrophone = ''
     stream = await open('')
     onFallback('Using the default microphone')
   }
@@ -120,6 +140,8 @@ async function microphone(deviceId, signal, onFallback) {
     stream.getTracks().forEach((track) => track.stop())
     signal.throwIfAborted()
   }
+  // Permission can reveal labels that were hidden during idle preparation.
+  if (!preferredMicrophone) refreshMicrophoneChoice()
   return stream
 }
 

@@ -1,4 +1,4 @@
-import { captureAudio, prepareAudio } from './dictation-audio.js'
+import { captureAudio, prepareAudio, prepareMicrophone } from './dictation-audio.js'
 
 let capture,
   epoch = 0,
@@ -197,6 +197,7 @@ buttons.copy.onclick = async () => {
   }
 }
 // No stream is opened until the native shortcut is activated.
+prepareMicrophone()
 void prepareAudio().catch(() => {})
 
 // Transparent padding passes pointer input through; only visible controls intercept clicks.

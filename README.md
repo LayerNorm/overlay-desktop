@@ -54,6 +54,16 @@ source validation alone does not approve publication. CI saves the compiled shel
 with source provenance for interactive QA without rebuilding on the laptop. See [release process](guides/RELEASE_PROCESS.md)
 and [security policy](SECURITY.md).
 
+Dictation prepares its suspended audio graph and automatic microphone choice at
+launch without opening the microphone. Device changes refresh that choice in the
+background; a pending scan never blocks capture. A cloud take reuses its initial
+native session admission at release. Standalone uploads and explicit retries
+retain admission, and the web endpoint always enforces current authentication,
+workspace permissions, plan limits and billing before provider work.
+A 401 response triggers one forced session refresh and replay with the same
+idempotency key. Cancellation aborts that refresh; provider failures still require
+an explicit retry.
+
 The macOS CI wrapper imports the existing signing certificate into an ephemeral
 keychain using a separate random keychain password, then passes `CSC_KEYCHAIN`
 to electron-builder. It removes the certificate file and keychain after use.
