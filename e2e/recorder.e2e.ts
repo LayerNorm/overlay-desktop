@@ -13,6 +13,7 @@ test('the native HUD captures audio and delivers the transcription without a pre
   const pendingAuth: ServerResponse[] = []
   let failNext = false
   let rejectNextUpload = false
+  let sessionsAtRejectedUpload = 0
   const uploadKeys: (string | string[] | undefined)[] = []
   let requests = 0
   let holdTranscription = false
@@ -33,6 +34,7 @@ test('the native HUD captures audio and delivers the transcription without a pre
         uploadKeys.push(request.headers['idempotency-key'])
         if (rejectNextUpload) {
           rejectNextUpload = false
+          sessionsAtRejectedUpload = sessionRequests
           response.statusCode = 401
           response.end(JSON.stringify({ error: 'expired_session' }))
           return
@@ -180,7 +182,6 @@ test('the native HUD captures audio and delivers the transcription without a pre
     // retry the upload once with the same operation identity.
     rejectNextUpload = true
     const uploadsBeforeRefresh = requests
-    const sessionsBeforeRefresh = sessionRequests
     await page.evaluate(() => {
       Object.assign(window, { recorderResult: null })
       return window.overlayDesktop.call('transcription.start', { target: 'system', model: 'cloud' })
@@ -194,7 +195,7 @@ test('the native HUD captures audio and delivers the transcription without a pre
       )
       .toBe('Recorder acceptance passed')
     expect(requests).toBe(uploadsBeforeRefresh + 2)
-    expect(sessionRequests).toBe(sessionsBeforeRefresh + 1)
+    expect(sessionRequests).toBe(sessionsAtRejectedUpload + 1)
     expect(uploadKeys.at(-1)).toBeTruthy()
     expect(uploadKeys.at(-1)).toBe(uploadKeys.at(-2))
     await hud.getByRole('button', { name: 'Dismiss dictation' }).click()
