@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Add This Mac: Overlay agents can use this Mac as a Computer. The embedded Agent Host (now 0.5.0) can start with `--local-tools` and no third-party harness. The bridge gains the `localComputer` capability (status, macOS Screen Recording and Accessibility permission requests, and a per-device "keep available" switch) plus a `localTools` option on `agentHost.start`. With "keep available" on, the saved local-tools host restarts at launch once the session is verified; sign-out turns it off and stops the host. Unpackaged development builds can run a locally packed host through `OVERLAY_DESKTOP_DEV_HOST_PACKAGE` for QA.
 - Show the Dock's running indicator: the dictation overlay is now a non-activating panel that floats over full-screen apps without briefly turning Overlay into a background app, which made macOS drop the dot under its Dock icon.
 - Match the main window's frame to the Overlay theme (from the page's theme colour) instead of the macOS appearance, removing the black outline around the light theme when macOS is in Dark mode.
 - Use the current Overlay logo (the black serif O with two eyes) as the app icon on macOS, Windows and Linux, sized to the macOS icon grid so it matches other Dock icons. Delete the outdated orb and "Dawn" logos, tray images and marketing images that the app no longer used.
