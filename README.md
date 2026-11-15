@@ -1,8 +1,8 @@
 # Overlay for Mac
 
 The complete Overlay web app in a secure Electron shell, with native dictation,
-floating chat and notes panels, screenshots, notifications, a local Agent Host
-and automatic updates. Web features ship to desktop through the same app routes.
+floating chat and notes panels, screenshots, notifications, This Mac (Overlay's
+own agents using this Mac as a Computer) and automatic updates. Web features ship to desktop through the same app routes.
 
 CI exercises the native recorder HUD with a synthetic media device as well as
 direct transcription, so capture startup and preload isolation are both covered.
@@ -40,7 +40,8 @@ permissions and signed upgrade acceptance also require the release QA checklist.
 `packages/overlay-desktop-bridge` is vendored from overlay-web. Keep its schemas
 and fingerprint synchronized. Only the pinned top-level origin receives it; main
 validates the caller, method and arguments again. Main contains no chat/agent
-inference pipeline, provider SDK or direct Convex client. Agent Host enrollment is
+inference pipeline, provider SDK or direct Convex client. The embedded Agent Host
+serves only Overlay's local tools, never a third-party harness; connecting it is
 user-initiated and server approval still gates filesystem access.
 
 On upgrade, transcripts and native preferences are exported privately, while

@@ -8,17 +8,10 @@ import { delimiter, join } from 'node:path'
  * Keep EMBEDDED_HOST_PACKAGE_SPEC in sync with OVERLAY_AGENT_HOST_PACKAGE_VERSION
  * in the web `src/server/agents/agent-enrollment-command.ts`.
  */
-export const EMBEDDED_HOST_PACKAGE_SPEC = '@layernorm/overlay-agent-host@0.4.3'
+export const EMBEDDED_HOST_PACKAGE_SPEC = '@layernorm/overlay-agent-host@0.5.0'
 export const EMBEDDED_HOST_NODE_SPEC = 'node@24'
 
-export const EMBEDDED_HOST_ADAPTERS = ['codex', 'claude-code', 'hermes'] as const
-export type EmbeddedHostAdapter = (typeof EMBEDDED_HOST_ADAPTERS)[number]
-
 export const ENROLLMENT_CODE_PATTERN = /^[A-Za-z0-9_-]{6,128}$/
-
-export function isEmbeddedHostAdapter(value: unknown): value is EmbeddedHostAdapter {
-  return typeof value === 'string' && (EMBEDDED_HOST_ADAPTERS as readonly string[]).includes(value)
-}
 
 export function isValidServerOrigin(value: string): boolean {
   try {
@@ -72,27 +65,40 @@ export function resolveNpxPath(
   )
 }
 
+/**
+ * Unpackaged development builds may run a locally packed host tarball for QA.
+ * Packaged builds always use the pinned registry release.
+ */
+export function embeddedHostPackageSpec(
+  env: NodeJS.ProcessEnv = process.env,
+  packaged = true
+): string {
+  const override = env.OVERLAY_DESKTOP_DEV_HOST_PACKAGE?.trim()
+  if (!packaged && override && /^\/[^\0\n]+\.tgz$/.test(override)) return override
+  return EMBEDDED_HOST_PACKAGE_SPEC
+}
+
+/** Connects this Mac with local tools only; the host never starts a third-party harness. */
 export function buildEmbeddedHostArgs(args: {
   code: string
-  adapterId: EmbeddedHostAdapter
   origin: string
   stateDir: string
   name: string
   hostingAuthFile?: string
+  packageSpec?: string
 }): string[] {
   return [
     '--yes',
     '--package',
     EMBEDDED_HOST_NODE_SPEC,
     '--package',
-    EMBEDDED_HOST_PACKAGE_SPEC,
+    args.packageSpec ?? EMBEDDED_HOST_PACKAGE_SPEC,
     'overlay-agent-host',
     'connect',
     args.code,
     '--server',
     args.origin,
-    '--adapter',
-    args.adapterId,
+    '--local-tools',
     '--state-dir',
     args.stateDir,
     '--name',
@@ -102,4 +108,25 @@ export function buildEmbeddedHostArgs(args: {
     '--run',
     ...(args.hostingAuthFile ? ['--hosting-auth-file', args.hostingAuthFile] : [])
   ]
+}
+
+/** Restarts an already connected host from its saved configuration (no enrollment code). */
+export function buildEmbeddedHostRunArgs(args: { configPath: string; packageSpec?: string }): string[] {
+  return [
+    '--yes',
+    '--package',
+    EMBEDDED_HOST_NODE_SPEC,
+    '--package',
+    args.packageSpec ?? EMBEDDED_HOST_PACKAGE_SPEC,
+    'overlay-agent-host',
+    'run',
+    '--config',
+    args.configPath
+  ]
+}
+
+/** The phrase the host prints while it waits for approval, so Overlay can match it to its enrollment. */
+export function verificationPhraseFrom(line: string): string | null {
+  const match = /Verify this phrase in Overlay: ([a-z]+(?:-[a-z]+){1,5})\s*$/.exec(line.trim())
+  return match?.[1] ?? null
 }
