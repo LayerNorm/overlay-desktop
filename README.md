@@ -1,3 +1,5 @@
+> **Moved.** This project now lives in the Overlay monorepo, [LayerNorm/overlay](https://github.com/LayerNorm/overlay), at `apps/desktop`. This repository is archived and read-only.
+
 # Overlay for Mac
 
 The Overlay web app in a secure Electron shell, plus the parts a browser can't do:
